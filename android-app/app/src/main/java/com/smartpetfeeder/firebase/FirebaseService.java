@@ -582,14 +582,12 @@ public class FirebaseService {
 
     public static final long TRAY_COMMAND_EXPIRY_MS = 30_000L;
 
-    /** Reports remote_command.status transitions (accepted / completed / rejected / expired) for one command id. */
     public interface CommandStatusListener {
         void onStatus(String status, String error);
     }
 
     private ValueEventListener commandWatchListener;
 
-    /** Watches remote_command for the given command id only; replaces any previous watch. */
     public void watchRemoteCommand(final String commandId, final CommandStatusListener l) {
         stopWatchingRemoteCommand();
         if (deviceStatusRef == null || commandId == null || l == null) return;
@@ -615,11 +613,6 @@ public class FirebaseService {
         commandWatchListener = null;
     }
 
-    /** Sends a one-shot "open_tray" / "close_tray" command through Firebase. Not queued offline:
-     *  a stale tray command must never run later. The device acknowledges by moving
-     *  remote_command.status through accepted -> completed (or rejected + error).
-     *  "open_tray" runs a full open -> hold -> automatic close cycle on the device;
-     *  "close_tray" ends the open/hold phase early and returns the tray. */
     public void sendRemoteTrayCommand(boolean open, String actionId, AckCallback cb) {
         if (deviceStatusRef == null) {
             if (cb != null) cb.onFailed("not_ready");
@@ -639,8 +632,6 @@ public class FirebaseService {
         });
     }
 
-    /** Sends a one-shot "dispense_water" command through Firebase (not queued offline, so a stale
-     *  command never runs later). The device answers through remote_command.status. */
     public void sendRemoteWaterCommand(float volumeMl, String actionId, AckCallback cb) {
         if (deviceStatusRef == null) {
             if (cb != null) cb.onFailed("not_ready");

@@ -176,7 +176,6 @@ public class EspApiClient {
         });
     }
 
-    /** "dispense_water": the feeder opens the pump relay and counts flow-sensor pulses until volumeMl is reached. */
     public void sendWaterCommand(float volumeMl, String actionId, Callback callback) {
         executor.execute(() -> {
             try {
@@ -194,10 +193,6 @@ public class EspApiClient {
         });
     }
 
-    /** open=true -> "open_tray": the feeder runs a full timed open -> hold -> automatic close cycle.
-     *  open=false -> "close_tray": ends the hold early and returns the tray now.
-     *  The reply carries the firmware timings (openMs, holdMs, closeMs, settleMs). actionId is the
-     *  duplicate guard: the feeder ignores a command id it has already accepted. */
     public void sendTrayCommand(boolean open, String actionId, Callback callback) {
         executor.execute(() -> {
             try {

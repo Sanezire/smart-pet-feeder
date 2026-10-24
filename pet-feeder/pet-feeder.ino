@@ -12,7 +12,7 @@
 #include "HX711.h"
 
 #define PIN_SERVO         D3   // GPIO14 - no boot-strap behaviour
-#define PIN_TRAY          D8   // GPIO15 - tray servo signal (boot-strap pin: must be LOW at reset)
+#define PIN_TRAY          D8
 #define PIN_RELAY         D1   // GPIO5 - water valve / pump relay
 #define PIN_FLOW_SENSOR   D2   // GPIO4 - YF-S201 pulse output
 #define PIN_FOOD_SENSOR   A0
@@ -26,8 +26,8 @@
 #define RELAY_OFF_LEVEL           (RELAY_ON_LEVEL == HIGH ? LOW : HIGH)
 // pulses per liter = (7.5 Hz per L/min) * 60 s = 450
 #define WATER_PULSES_PER_LITER    (FLOW_CALIBRATION_FACTOR * 60.0f)
-#define WATER_PULSE_MIN_US        5000UL    // ignore pulses closer than this (noise); 5 ms = 200 Hz = ~26 L/min max
-#define WATER_SETTLE_MS           600UL    // ignore pulses right after the relay switches on (start-up noise)
+#define WATER_PULSE_MIN_US        5000UL
+#define WATER_SETTLE_MS           600UL
 
 #define HX711_DOUT 12
 #define HX711_SCK  13
@@ -75,36 +75,15 @@
 #define SERVO_HOME_ANGLE          0
 #define SERVO_SWEEP_ANGLE         90
 #define SERVO_HOLD_MS             2000UL
-// ===========================================================================
-// TRAY SERVO (MG90S modified for 360-degree CONTINUOUS rotation, signal on D8)
-// The servo has NO position feedback: a pulse width sets SPEED and DIRECTION only.
-// The tray returns to "closed" only because it is driven back for a calibrated time.
-//
-// *** PHYSICAL CALIBRATION REQUIRED - values marked [CALIBRATE] ***
-//   TRAY_NEUTRAL_US    [CALIBRATE] pulse that makes the servo stand perfectly still (about 1500).
-//                      Trim in +/-5 us steps until there is no creep (or turn the servo trim pot).
-//   TRAY_OPEN_US /
-//   TRAY_CLOSE_US      [CALIBRATE] speed + direction. Further from neutral = faster. 1500 +/- 200 is
-//                      a good start. If the tray moves the wrong way, swap the two values.
-//   TRAY_OPEN_MS       [CALIBRATE] how long to turn in the OPEN direction (how far the tray opens).
-//   TRAY_CLOSE_MS      [CALIBRATE] how long to turn back so the tray lands EXACTLY on the closed stop.
-//                      Start equal to TRAY_OPEN_MS. Run several cycles: if the tray creeps open, raise
-//                      it; if it presses on the stop, lower it. Check again after changing battery/speed.
-//   TRAY_HOLD_MS       [CONFIGURE] how long the tray stays open before closing by itself.
-//
-// The Android app mirrors these values in MainActivity (TRAY_OPEN_RUN_MS / TRAY_HOLD_MS /
-// TRAY_CLOSE_RUN_MS / TRAY_SETTLE_MS) - change both sides together. The LAN reply of the feeder also
-// reports them, so the app corrects itself when it talks to the feeder directly.
-// ===========================================================================
 #define TRAY_NEUTRAL_US           1500   // [CALIBRATE] stop command (microseconds)
 #define TRAY_OPEN_US              1700   // [CALIBRATE] opening direction / speed
-#define TRAY_CLOSE_US             1300   // [CALIBRATE] closing direction / speed (opposite side of neutral)
+#define TRAY_CLOSE_US             1300
 #define TRAY_OPEN_MS              15000UL // [CALIBRATE] time spent turning in the opening direction
-#define TRAY_AUTO_CLOSE           0      // 0 = tray stays open until "close_tray" (app button); 1 = closes itself after TRAY_HOLD_MS
-#define TRAY_HOLD_MS              5000UL // [CONFIGURE] open time before the automatic close (only used when TRAY_AUTO_CLOSE = 1)
-#define TRAY_CLOSE_MS             15000UL // [CALIBRATE] time spent turning back to the closed position
-#define TRAY_SETTLE_MS            400UL  // neutral pulses sent after the return, before the signal is released
-#define TRAY_COOLDOWN_MS          2000UL // minimum gap between two tray cycles (repeat-command guard)
+#define TRAY_AUTO_CLOSE           0
+#define TRAY_HOLD_MS              5000UL
+#define TRAY_CLOSE_MS             15000UL
+#define TRAY_SETTLE_MS            400UL
+#define TRAY_COOLDOWN_MS          2000UL
 #define TRAY_OK                   0
 #define TRAY_ERR_BUSY             1
 #define TRAY_ERR_COOLDOWN         2
@@ -190,9 +169,9 @@ unsigned long trayPhaseStartMs    = 0;
 unsigned long trayLastEndMs       = 0;
 bool          trayHasRun          = false;
 String        trayRemoteCommandId = "";   // Firebase command to acknowledge when the cycle ends
-String        trayLastCommandId   = "";   // last tray command id accepted (LAN or cloud): duplicate guard
-unsigned long trayOpenedMs        = 0;    // how long the tray actually turned in the opening direction
-unsigned long trayCloseDurationMs = 0;    // return time for the current cycle (scaled if closed early)
+String        trayLastCommandId   = "";
+unsigned long trayOpenedMs        = 0;
+unsigned long trayCloseDurationMs = 0;
 int currentLocalHour = -1;
 int currentLocalMinute = -1;
 int currentLocalWday = -1;
@@ -927,7 +906,6 @@ void handleRemoteCommand(JsonObject cmd) {
   if (type == "open_tray" || type == "close_tray") {
     lastProcessedRemoteCommandId = commandId;
     bool opening = (type == "open_tray");
-    // Same command already executed (e.g. the app retried over the cloud after a LAN timeout).
     if (commandId == trayLastCommandId) {
       firebasePatch(userPath("/device_status/remote_command.json"),
           String("{\"status\":\"") + (trayState == TRAY_IDLE ? "completed" : "accepted") + "\"}");
@@ -950,7 +928,6 @@ void handleRemoteCommand(JsonObject cmd) {
       Serial.println("[Tray] Remote " + type + " rejected (" + String(trayErrorText(rc)) + "): " + commandId);
       return;
     }
-    // Acknowledge BEFORE moving the servo so the (blocking) HTTP call cannot stretch a timed phase.
     firebasePatch(userPath("/device_status/remote_command.json"),
         String("{\"status\":\"accepted\",\"acceptedAtMs\":") + String(millis()) + "}");
     rc = opening ? startTray() : requestTrayClose();
@@ -962,7 +939,7 @@ void handleRemoteCommand(JsonObject cmd) {
       return;
     }
     trayLastCommandId   = commandId;
-    trayRemoteCommandId = commandId;   // "completed" is patched by updateTray() when the tray is closed again
+    trayRemoteCommandId = commandId;
     Serial.println("[Tray] Remote " + type + " started: " + commandId);
     return;
   }
@@ -1253,8 +1230,6 @@ void updateFirebaseRemoteControl() {
   if (deviceUid.length() == 0) return;
   if (finalizeStationSwitchPending) return;
   if (isFeeding) return;
-  // Keep the timed turning phases free of blocking HTTP calls. While the tray is parked open (HOLDING)
-  // or closed (IDLE) the network may be used, which also lets a cloud "close_tray" be received.
   if (trayState != TRAY_IDLE && trayState != TRAY_HOLDING) return;
   pushLiveWeightToFirebase(false);
   if (millis() - lastFirebasePollMs < FIREBASE_POLL_MS) return;
@@ -1449,12 +1424,6 @@ void updateFeeder() {
   }
 }
 
-// ---------------------------------------------------------------------------
-// Water dispensing (YF-S201 + relay). Fully independent of the food feeder:
-// pulses are counted in an interrupt, the relay is cut inside the ISR the
-// moment the target is reached, and updateWater() only does non-blocking
-// once-per-second reporting.
-// ---------------------------------------------------------------------------
 volatile uint32_t waterPulseCount   = 0;
 volatile uint32_t waterTargetPulses = 0;
 volatile bool     waterActive       = false;
@@ -1500,7 +1469,6 @@ void initWater() {
 
 bool isWaterDispensing() { return waterActive; }
 
-// Starts a new dispense of `ml` millilitres. Returns false if one is already running or ml is invalid.
 bool startWater(float ml) {
   if (waterActive) return false;
   float maxMl = WATER_MAX_LITERS * 1000.0f;
@@ -1583,15 +1551,6 @@ void updateWater() {
   }
 }
 
-// ---------------------------------------------------------------------------
-// Tray servo (D8, continuous rotation). Non-blocking open-and-close cycle:
-//   OPENING  turn TRAY_OPEN_US for TRAY_OPEN_MS
-//   HOLDING  neutral, tray parked open (servo stays attached); leaves only on close_tray, or after
-//            TRAY_HOLD_MS when TRAY_AUTO_CLOSE = 1
-//   CLOSING  turn TRAY_CLOSE_US for TRAY_CLOSE_MS (scaled down if closed early)
-//   STOPPING neutral for TRAY_SETTLE_MS, then detach and drive D8 LOW -> IDLE (closed)
-// The servo stays attached for the whole cycle and is detached ONLY after the neutral command.
-// ---------------------------------------------------------------------------
 const char* trayErrorText(int code) {
   switch (code) {
     case TRAY_ERR_BUSY:     return "Tray cycle already in progress";
@@ -1612,8 +1571,6 @@ const char* trayStateName() {
   }
 }
 
-// D8 (GPIO15) must be LOW at reset or the ESP8266 will not boot from flash.
-// The pin is held LOW until the Servo library takes over after boot.
 void initTrayPinSafe() {
   digitalWrite(PIN_TRAY, LOW);
   pinMode(PIN_TRAY, OUTPUT);
@@ -1638,7 +1595,6 @@ static void beginTrayClose(unsigned long closeMs) {
   Serial.println("[Tray] Closing: turning back for " + String(closeMs) + " ms.");
 }
 
-// Starts one full open-and-close cycle. Returns TRAY_OK or a TRAY_ERR_* code. Never blocks.
 int startTray() {
   if (trayState != TRAY_IDLE) return TRAY_ERR_BUSY;
   if (trayHasRun && millis() - trayLastEndMs < TRAY_COOLDOWN_MS) return TRAY_ERR_COOLDOWN;
@@ -1653,8 +1609,6 @@ int startTray() {
   return TRAY_OK;
 }
 
-// Manual close: ends the open/hold phase now and returns the tray. If the tray was stopped part-way
-// through opening, the return time is scaled so it still lands on the closed position.
 int requestTrayClose() {
   if (trayState == TRAY_IDLE) return TRAY_ERR_NOT_OPEN;
   if (trayState != TRAY_OPENING && trayState != TRAY_HOLDING) return TRAY_ERR_BUSY;
@@ -1683,7 +1637,7 @@ void updateTray() {
       if (elapsed < TRAY_HOLD_MS) return;
       beginTrayClose(TRAY_CLOSE_MS);
 #endif
-      return;                              // manual mode: stay open, servo attached at neutral, until close_tray
+      return;
     case TRAY_CLOSING:
       if (elapsed < trayCloseDurationMs) return;
       trayServo.writeMicroseconds(TRAY_NEUTRAL_US);
@@ -1701,7 +1655,6 @@ void updateTray() {
   trayHasRun    = true;
   Serial.println("[Tray] Cycle complete - tray closed, servo stopped.");
   if (trayRemoteCommandId.length() > 0) {
-    // Only acknowledge if no newer remote command has replaced ours in the meantime.
     if (trayRemoteCommandId == lastProcessedRemoteCommandId
         && WiFi.status() == WL_CONNECTED && deviceUid.length() > 0) {
       firebasePatch(userPath("/device_status/remote_command.json"),
@@ -1711,9 +1664,6 @@ void updateTray() {
   }
 }
 
-// GPIO0 (D3) must be HIGH at reset or the ESP8266 enters the serial bootloader.
-// The servo is only attached after boot, and the pin is driven HIGH first so the
-// signal line idles high (never low) until the Servo library takes over.
 void initServoPinSafe() {
   digitalWrite(PIN_SERVO, HIGH);
   pinMode(PIN_SERVO, OUTPUT);
@@ -2052,7 +2002,6 @@ void handleCommand() {
   if (command == "open_tray" || command == "close_tray") {
     bool opening = (command == "open_tray");
     String commandId = doc["commandId"] | "";
-    // Duplicate guard: the app resends the same id after a lost reply or when it falls back to the cloud.
     if (commandId.length() > 0 && commandId == trayLastCommandId) {
       server.send(200, "application/json",
         String("{\"status\":\"ok\",\"duplicate\":true,\"state\":\"") + trayStateName() + "\"}");
@@ -2066,7 +2015,7 @@ void handleCommand() {
       return;
     }
     if (commandId.length() > 0) trayLastCommandId = commandId;
-    trayRemoteCommandId = "";   // a LAN command supersedes any pending cloud acknowledgement
+    trayRemoteCommandId = "";
     server.send(200, "application/json",
       String("{\"status\":\"ok\",\"message\":\"") + (opening ? "Tray opening" : "Tray closing")
       + "\",\"state\":\"" + trayStateName() + "\""

@@ -527,20 +527,12 @@ public class MainActivity extends AppCompatActivity implements FirebaseService.D
                 });
     }
 
-    // ---- Open / Close Tray (continuous-rotation servo, timed cycle run by the firmware) ------
-    // The feeder runs: turn open (TRAY_OPEN_RUN_MS) -> hold open (TRAY_HOLD_MS) -> turn back
-    // (TRAY_CLOSE_RUN_MS) -> neutral/settle (TRAY_SETTLE_MS) -> servo detached. "Close Tray" ends the
-    // hold early. These defaults MUST match TRAY_OPEN_MS / TRAY_HOLD_MS / TRAY_CLOSE_MS / TRAY_SETTLE_MS /
-    // TRAY_COOLDOWN_MS in pet_feeder.ino. Over the LAN the feeder reports its real values and the app
-    // adopts them; over the cloud these defaults are used. [CALIBRATE both sides together]
     private static final long TRAY_OPEN_RUN_MS  = 15000L;
-    /** false = the tray stays open until "Close Tray" is tapped. Must match TRAY_AUTO_CLOSE in the firmware. */
     private static final boolean TRAY_AUTO_CLOSE = false;
     private static final long TRAY_HOLD_MS      = 5000L;   // only used when TRAY_AUTO_CLOSE is true
     private static final long TRAY_CLOSE_RUN_MS = 15000L;
     private static final long TRAY_SETTLE_MS    = 400L;
     private static final long TRAY_COOLDOWN_MS  = 2000L;
-    /** Extra wait for the cloud "completed" acknowledgement before the UI gives up waiting. */
     private static final long TRAY_CLOUD_GRACE_MS = 8000L;
     private static final long TRAY_SEND_TIMEOUT_MS = 20_000L;
     private static final int  TRAY_VERIFY_TRIES = 5;
@@ -562,7 +554,6 @@ public class MainActivity extends AppCompatActivity implements FirebaseService.D
         }
     }
 
-    /** The only place that touches the button: the label and enabled state always follow trayUi. */
     private void renderTrayButton() {
         if (btnOpenTray == null) return;
         switch (trayUi) {
@@ -606,7 +597,6 @@ public class MainActivity extends AppCompatActivity implements FirebaseService.D
         if (firebaseService != null) firebaseService.stopWatchingRemoteCommand();
     }
 
-    /** Back to the closed/idle state (after a short cooldown that mirrors the firmware). */
     private void finishTrayCycle() {
         cancelTrayTimers();
         stopTrayWatch();
@@ -615,7 +605,6 @@ public class MainActivity extends AppCompatActivity implements FirebaseService.D
         trayHandler.postDelayed(() -> setTrayUi(TrayUi.IDLE), TRAY_COOLDOWN_MS);
     }
 
-    /** A send failed or was refused without changing the device: restore the previous state. */
     private void abortTraySend() {
         cancelTrayTimers();
         stopTrayWatch();
@@ -631,7 +620,6 @@ public class MainActivity extends AppCompatActivity implements FirebaseService.D
         traySettleMs = r.optLong("settleMs", traySettleMs);
     }
 
-    /** Device accepted "open_tray": it now runs the whole cycle by itself, the UI follows the same clock. */
     private void onTrayOpenAccepted() {
         cancelTrayTimers();
         setTrayUi(TrayUi.OPENING);
@@ -651,14 +639,12 @@ public class MainActivity extends AppCompatActivity implements FirebaseService.D
 
     private void scheduleTrayCycleEnd(long expectedMs) {
         if (trayViaCloud) {
-            // Cloud: finish on the device's "completed" acknowledgement; the timer is only a fallback.
             trayHandler.postDelayed(this::finishTrayCycle, expectedMs + TRAY_CLOUD_GRACE_MS);
         } else {
             trayHandler.postDelayed(() -> verifyTrayClosed(TRAY_VERIFY_TRIES), expectedMs);
         }
     }
 
-    /** LAN: only report "closed" once the feeder itself says so (re-check a few times, then trust the clock). */
     private void verifyTrayClosed(int triesLeft) {
         if (espApiClient == null || triesLeft <= 0) { finishTrayCycle(); return; }
         espApiClient.getStatus(new EspApiClient.Callback() {
@@ -675,15 +661,12 @@ public class MainActivity extends AppCompatActivity implements FirebaseService.D
         });
     }
 
-    /** The device refused because a cycle is already running (e.g. the app was restarted while the tray
-     *  was open). Manual mode: an "open" refusal means the tray is open, so offer Close. Otherwise it is
-     *  already returning: follow it to its end. */
     private void followRunningTrayCycle(boolean requestedOpen) {
         cancelTrayTimers();
         if (!TRAY_AUTO_CLOSE && requestedOpen) {
             stopTrayWatch();
             trayActionId = null;
-            setTrayUi(TrayUi.OPEN);   // if wrong, a close request is answered "already closed" and the UI resets
+            setTrayUi(TrayUi.OPEN);
             return;
         }
         setTrayUi(TrayUi.CLOSING);
@@ -691,7 +674,6 @@ public class MainActivity extends AppCompatActivity implements FirebaseService.D
     }
 
     private void triggerTrayToggle() {
-        // One command at a time: anything other than a stable CLOSED or OPEN state ignores the tap.
         if (btnOpenTray == null || (trayUi != TrayUi.IDLE && trayUi != TrayUi.OPEN)) return;
         final boolean opening = (trayUi == TrayUi.IDLE);
         traySendFrom = trayUi;
@@ -734,8 +716,6 @@ public class MainActivity extends AppCompatActivity implements FirebaseService.D
                     public void onError(String errorMessage) {
                         if (!actionId.equals(trayActionId)) return;
                         String msg = errorMessage == null ? "" : errorMessage.toLowerCase(java.util.Locale.US);
-                        // The device was reached and refused: do NOT fall back to the cloud,
-                        // that would just replay the same rejected command.
                         if (msg.contains("already in progress") && msg.contains("tray")) {
                             Toast.makeText(MainActivity.this, R.string.open_tray_busy, Toast.LENGTH_LONG).show();
                             // A cycle is running that this UI did not start.
@@ -786,7 +766,6 @@ public class MainActivity extends AppCompatActivity implements FirebaseService.D
                 if (!actionId.equals(trayActionId)) return;
                 Toast.makeText(MainActivity.this, R.string.open_tray_sent_cloud,
                         Toast.LENGTH_LONG).show();
-                // The UI clock starts only when the feeder reports "accepted"; "completed" ends it.
                 firebaseService.watchRemoteCommand(actionId, (status, error) -> {
                     if (!actionId.equals(trayActionId)) return;
                     switch (status) {
