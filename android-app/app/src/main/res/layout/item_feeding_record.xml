@@ -5,7 +5,7 @@
     android:id="@+id/cardFeedingRecord"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:layout_marginBottom="8dp"
+    android:layout_marginBottom="@dimen/spacing_sm"
     app:cardCornerRadius="14dp"
     app:cardElevation="0dp"
     app:cardBackgroundColor="@color/colorSurface"
@@ -44,8 +44,8 @@
                     android:id="@+id/tvScheduledTime"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Scheduled: 08:00"
-                    android:textSize="13sp"
+                    android:text="@string/scheduled_08_00"
+                    android:textSize="@dimen/text_size_body_sm"
                     android:textStyle="bold"
                     android:textColor="@color/colorTextPrimary"
                     android:layout_marginEnd="14dp"/>
@@ -54,8 +54,8 @@
                     android:id="@+id/tvActualTime"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Actual: 08:04"
-                    android:textSize="12sp"
+                    android:text="@string/actual_08_04"
+                    android:textSize="@dimen/text_size_sm"
                     android:textColor="@color/colorTextMuted"/>
 
             </LinearLayout>
@@ -64,8 +64,8 @@
                 android:id="@+id/tvTargetWeight"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="Target: 80.0g"
-                android:textSize="12sp"
+                android:text="@string/target_80_0g"
+                android:textSize="@dimen/text_size_sm"
                 android:textColor="@color/colorTextSecondary"
                 android:layout_marginBottom="3dp"/>
 
@@ -73,8 +73,8 @@
                 android:id="@+id/tvDispensedWeight"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="Dispensed: 80.0g  ·  Consumed: 0.0g  ·  Remaining: 0.0g"
-                android:textSize="12sp"
+                android:text="@string/dispensed_80_0g_consumed_0"
+                android:textSize="@dimen/text_size_sm"
                 android:textColor="@color/colorTextSecondary"
                 android:maxLines="6"
                 android:ellipsize="end"
@@ -85,8 +85,8 @@
                 android:id="@+id/tvDeviation"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Deviation: Normal"
-                android:textSize="11sp"
+                android:text="@string/deviation_normal"
+                android:textSize="@dimen/text_size_caption"
                 android:textColor="@color/colorStatusCompleted"/>
 
         </LinearLayout>
@@ -99,9 +99,9 @@
             android:layout_marginEnd="14dp"
             android:paddingStart="9dp"
             android:paddingEnd="9dp"
-            android:paddingTop="4dp"
-            android:paddingBottom="4dp"
-            android:text="DONE"
+            android:paddingTop="@dimen/spacing_xs"
+            android:paddingBottom="@dimen/spacing_xs"
+            android:text="@string/done"
             android:textSize="9sp"
             android:textStyle="bold"
             android:textAllCaps="true"

@@ -1,7 +1,10 @@
 package com.smartpetfeeder.util;
 
 import android.content.Context;
-import android.graphics.Color;
+import android.graphics.drawable.GradientDrawable;
+
+import androidx.core.content.ContextCompat;
+import androidx.core.graphics.ColorUtils;
 
 import com.github.mikephil.charting.animation.Easing;
 import com.github.mikephil.charting.charts.BarChart;
@@ -17,6 +20,7 @@ import com.github.mikephil.charting.data.LineData;
 import com.github.mikephil.charting.data.LineDataSet;
 import com.github.mikephil.charting.formatter.IndexAxisValueFormatter;
 import com.github.mikephil.charting.formatter.ValueFormatter;
+import com.smartpetfeeder.R;
 import com.smartpetfeeder.model.DashboardData;
 
 import java.util.ArrayList;
@@ -24,19 +28,29 @@ import java.util.List;
 
 public class ChartHelper {
 
-    private static final int COLOR_TARGET    = Color.parseColor("#8D6E63");
-    private static final int COLOR_ACTUAL    = Color.parseColor("#FF8F00");
-    private static final int COLOR_ACTUAL_FILL = Color.parseColor("#33FF8F00");
-    private static final int COLOR_SCHEDULED = Color.parseColor("#BCAAA4");
-    private static final int COLOR_COMPLETED = Color.parseColor("#4CAF50");
-    private static final int COLOR_GRID      = Color.parseColor("#E8DDD9");
-    private static final int COLOR_TEXT      = Color.parseColor("#8D6E63");
-    private static final int COLOR_NO_DATA   = Color.parseColor("#6D4C41");
+    private final int COLOR_TARGET;
+    private final int COLOR_ACTUAL;
+    private final int COLOR_ACTUAL_FILL;
+    private final int COLOR_SCHEDULED;
+    private final int COLOR_COMPLETED;
+    private final int COLOR_GRID;
+    private final int COLOR_TEXT;
+    private final int COLOR_NO_DATA;
+    private final int COLOR_SURFACE;
 
     private final Context context;
 
     public ChartHelper(Context context) {
         this.context = context;
+        COLOR_TARGET      = ContextCompat.getColor(context, R.color.colorChartTarget);
+        COLOR_ACTUAL      = ContextCompat.getColor(context, R.color.colorChartActual);
+        COLOR_ACTUAL_FILL = ColorUtils.setAlphaComponent(COLOR_ACTUAL, 90);
+        COLOR_SCHEDULED   = ContextCompat.getColor(context, R.color.colorChartScheduled);
+        COLOR_COMPLETED   = ContextCompat.getColor(context, R.color.colorChartCompleted);
+        COLOR_GRID        = ContextCompat.getColor(context, R.color.colorDivider);
+        COLOR_TEXT        = ContextCompat.getColor(context, R.color.colorTextMuted);
+        COLOR_NO_DATA     = ContextCompat.getColor(context, R.color.colorTextSecondary);
+        COLOR_SURFACE     = ContextCompat.getColor(context, R.color.colorSurface);
     }
 
     public void setupLineChart(LineChart lineChart) {
@@ -50,6 +64,9 @@ public class ChartHelper {
         lineChart.setExtraOffsets(8f, 12f, 8f, 12f);
         lineChart.setNoDataText("No data available from feeder");
         lineChart.setNoDataTextColor(COLOR_NO_DATA);
+        ChartMarkerView marker = new ChartMarkerView(context);
+        marker.setChartView(lineChart);
+        lineChart.setMarker(marker);
 
         XAxis xAxis = lineChart.getXAxis();
         xAxis.setPosition(XAxis.XAxisPosition.BOTTOM);
@@ -65,6 +82,7 @@ public class ChartHelper {
         leftAxis.setDrawGridLines(true);
         leftAxis.setGridColor(COLOR_GRID);
         leftAxis.setGridLineWidth(0.8f);
+        leftAxis.enableGridDashedLine(10f, 10f, 0f);
         leftAxis.setDrawAxisLine(false);
         leftAxis.setTextColor(COLOR_TEXT);
         leftAxis.setTextSize(10f);
@@ -112,6 +130,7 @@ public class ChartHelper {
         leftAxis.setDrawGridLines(true);
         leftAxis.setGridColor(COLOR_GRID);
         leftAxis.setGridLineWidth(0.8f);
+        leftAxis.enableGridDashedLine(10f, 10f, 0f);
         leftAxis.setDrawAxisLine(false);
         leftAxis.setTextColor(COLOR_TEXT);
         leftAxis.setTextSize(10f);
@@ -161,7 +180,9 @@ public class ChartHelper {
         targetSet.setCircleRadius(4f);
         targetSet.setCircleHoleRadius(2f);
         targetSet.setDrawCircleHole(true);
-        targetSet.setCircleHoleColor(Color.WHITE);
+        targetSet.setCircleHoleColor(COLOR_SURFACE);
+        targetSet.setHighLightColor(COLOR_TARGET);
+        targetSet.setDrawHorizontalHighlightIndicator(false);
         targetSet.setDrawValues(false);
         targetSet.setMode(LineDataSet.Mode.CUBIC_BEZIER);
         targetSet.setDrawFilled(false);
@@ -174,12 +195,15 @@ public class ChartHelper {
         actualSet.setCircleRadius(4f);
         actualSet.setCircleHoleRadius(2f);
         actualSet.setDrawCircleHole(true);
-        actualSet.setCircleHoleColor(Color.WHITE);
+        actualSet.setCircleHoleColor(COLOR_SURFACE);
+        actualSet.setHighLightColor(COLOR_ACTUAL);
+        actualSet.setDrawHorizontalHighlightIndicator(false);
         actualSet.setDrawValues(false);
         actualSet.setMode(LineDataSet.Mode.CUBIC_BEZIER);
         actualSet.setDrawFilled(true);
-        actualSet.setFillColor(COLOR_ACTUAL_FILL);
-        actualSet.setFillAlpha(80);
+        GradientDrawable fill = new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM,
+                new int[]{COLOR_ACTUAL_FILL, ColorUtils.setAlphaComponent(COLOR_ACTUAL, 0)});
+        actualSet.setFillDrawable(fill);
 
         LineData lineData = new LineData(targetSet, actualSet);
         lineChart.setData(lineData);

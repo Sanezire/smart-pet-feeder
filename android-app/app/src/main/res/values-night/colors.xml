@@ -19,14 +19,14 @@
 
     <color name="colorTextPrimary">#F5EDE4</color>
     <color name="colorTextSecondary">#C4956A</color>
-    <color name="colorTextMuted">#8B6448</color>
+    <color name="colorTextMuted">#A87958</color>
     <color name="colorTextOnPrimary">#1A100A</color>
     <color name="colorTextOnAccent">#1A100A</color>
-    <color name="colorTextLabel">#7A5540</color>
+    <color name="colorTextLabel">#A9775B</color>
 
     <color name="colorStatusCompleted">#52B77A</color>
     <color name="colorStatusMissed">#E8905A</color>
-    <color name="colorStatusAnomaly">#D45070</color>
+    <color name="colorStatusAnomaly">#D75D7B</color>
     <color name="colorStatusWarning">#D4A830</color>
 
     <color name="colorBadgeCompleted">#0D3020</color>

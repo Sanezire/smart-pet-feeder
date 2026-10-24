@@ -2,6 +2,16 @@
 <resources>
 
     <style name="Theme.SmartPetFeeder" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+        <item name="android:fontFamily">@font/nunito</item>
+        <item name="fontFamily">@font/nunito</item>
+        <item name="textAppearanceButton">@style/TextAppearance.SmartPetFeeder.Font.Button</item>
+        <item name="textAppearanceBody1">@style/TextAppearance.SmartPetFeeder.Font.Body1</item>
+        <item name="textAppearanceBody2">@style/TextAppearance.SmartPetFeeder.Font.Body2</item>
+        <item name="textAppearanceSubtitle1">@style/TextAppearance.SmartPetFeeder.Font.Subtitle1</item>
+        <item name="textAppearanceSubtitle2">@style/TextAppearance.SmartPetFeeder.Font.Subtitle2</item>
+        <item name="textAppearanceCaption">@style/TextAppearance.SmartPetFeeder.Font.Caption</item>
+        <item name="textAppearanceHeadline6">@style/TextAppearance.SmartPetFeeder.Font.Headline6</item>
+        <item name="textAppearanceOverline">@style/TextAppearance.SmartPetFeeder.Font.Overline</item>
         <item name="colorPrimary">@color/colorPrimary</item>
         <item name="colorPrimaryVariant">@color/colorPrimaryDark</item>
         <item name="colorOnPrimary">@color/colorTextOnPrimary</item>
@@ -151,7 +161,7 @@
         <item name="android:insetBottom">0dp</item>
         <item name="backgroundTint">@color/colorPrimary</item>
         <item name="android:textColor">@color/colorTextOnPrimary</item>
-        <item name="android:stateListAnimator">@null</item>
+        <item name="android:stateListAnimator">@animator/press_scale</item>
         <item name="elevation">0dp</item>
     </style>
 
@@ -167,6 +177,7 @@
         <item name="strokeWidth">1.5dp</item>
         <item name="android:textColor">@color/colorPrimary</item>
         <item name="rippleColor">@color/colorRipple</item>
+        <item name="android:stateListAnimator">@animator/press_scale</item>
     </style>
 
     <style name="Widget.SmartPetFeeder.Button.Text" parent="Widget.MaterialComponents.Button.TextButton">
@@ -279,6 +290,46 @@
         <item name="android:textStyle">bold</item>
         <item name="android:textAllCaps">true</item>
         <item name="android:letterSpacing">0.04</item>
+    </style>
+
+    <style name="TextAppearance.SmartPetFeeder.Font.Button" parent="TextAppearance.MaterialComponents.Button">
+        <item name="android:fontFamily">@font/nunito_semibold</item>
+        <item name="fontFamily">@font/nunito_semibold</item>
+    </style>
+
+    <style name="TextAppearance.SmartPetFeeder.Font.Body1" parent="TextAppearance.MaterialComponents.Body1">
+        <item name="android:fontFamily">@font/nunito</item>
+        <item name="fontFamily">@font/nunito</item>
+    </style>
+
+    <style name="TextAppearance.SmartPetFeeder.Font.Body2" parent="TextAppearance.MaterialComponents.Body2">
+        <item name="android:fontFamily">@font/nunito</item>
+        <item name="fontFamily">@font/nunito</item>
+    </style>
+
+    <style name="TextAppearance.SmartPetFeeder.Font.Subtitle1" parent="TextAppearance.MaterialComponents.Subtitle1">
+        <item name="android:fontFamily">@font/nunito_medium</item>
+        <item name="fontFamily">@font/nunito_medium</item>
+    </style>
+
+    <style name="TextAppearance.SmartPetFeeder.Font.Subtitle2" parent="TextAppearance.MaterialComponents.Subtitle2">
+        <item name="android:fontFamily">@font/nunito_semibold</item>
+        <item name="fontFamily">@font/nunito_semibold</item>
+    </style>
+
+    <style name="TextAppearance.SmartPetFeeder.Font.Caption" parent="TextAppearance.MaterialComponents.Caption">
+        <item name="android:fontFamily">@font/nunito</item>
+        <item name="fontFamily">@font/nunito</item>
+    </style>
+
+    <style name="TextAppearance.SmartPetFeeder.Font.Headline6" parent="TextAppearance.MaterialComponents.Headline6">
+        <item name="android:fontFamily">@font/nunito_bold</item>
+        <item name="fontFamily">@font/nunito_bold</item>
+    </style>
+
+    <style name="TextAppearance.SmartPetFeeder.Font.Overline" parent="TextAppearance.MaterialComponents.Overline">
+        <item name="android:fontFamily">@font/nunito_semibold</item>
+        <item name="fontFamily">@font/nunito_semibold</item>
     </style>
 
 </resources>

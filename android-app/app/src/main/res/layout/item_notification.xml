@@ -4,7 +4,7 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:layout_marginBottom="8dp"
+    android:layout_marginBottom="@dimen/spacing_sm"
     app:cardCornerRadius="14dp"
     app:cardElevation="0dp"
     app:cardBackgroundColor="@color/colorSurface"
@@ -46,44 +46,44 @@
                 android:id="@+id/tvNotificationType"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="SYSTEM"
-                android:textSize="10sp"
+                android:text="@string/system"
+                android:textSize="@dimen/text_size_xs"
                 android:textStyle="bold"
                 android:textColor="@color/colorTextLabel"
                 android:letterSpacing="0.08"
                 android:textAllCaps="true"
-                android:layout_marginBottom="4dp"/>
+                android:layout_marginBottom="@dimen/spacing_xs"/>
 
             <TextView
                 android:id="@+id/tvNotificationTitle"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:textSize="14sp"
+                android:textSize="@dimen/text_size_md"
                 android:textStyle="bold"
                 android:textColor="@color/colorTextPrimary"
                 android:letterSpacing="-0.01"
-                android:text="Notification title"/>
+                android:text="@string/notification_title"/>
 
             <TextView
                 android:id="@+id/tvNotificationMessage"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="4dp"
-                android:textSize="13sp"
+                android:layout_marginTop="@dimen/spacing_xs"
+                android:textSize="@dimen/text_size_body_sm"
                 android:textColor="@color/colorTextSecondary"
                 android:lineSpacingExtra="2dp"
                 android:maxLines="10"
                 android:ellipsize="end"
-                android:text="Notification message."/>
+                android:text="@string/notification_message"/>
 
             <TextView
                 android:id="@+id/tvNotificationTime"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
-                android:textSize="11sp"
+                android:layout_marginTop="@dimen/spacing_sm"
+                android:textSize="@dimen/text_size_caption"
                 android:textColor="@color/colorTextMuted"
-                android:text="Just now"/>
+                android:text="@string/just_now"/>
         </LinearLayout>
     </LinearLayout>
 </androidx.cardview.widget.CardView>

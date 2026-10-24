@@ -5,29 +5,29 @@
     android:layout_height="wrap_content"
     android:orientation="vertical"
     android:background="@color/colorSurface"
-    android:padding="24dp">
+    android:padding="@dimen/spacing_2xl">
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
         android:gravity="center_vertical"
-        android:layout_marginBottom="16dp">
+        android:layout_marginBottom="@dimen/spacing_lg">
 
         <ImageView
             android:layout_width="32dp"
             android:layout_height="32dp"
             android:src="@drawable/ic_check_circle"
             app:tint="@color/colorStatusCompleted"
-            android:contentDescription="Success"
-            android:layout_marginEnd="12dp"/>
+            android:contentDescription="@string/success"
+            android:layout_marginEnd="@dimen/spacing_md"/>
 
         <TextView
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="Connected Successfully"
-            android:textSize="18sp"
+            android:text="@string/wifi_success_title"
+            android:textSize="@dimen/text_size_xl"
             android:textStyle="bold"
             android:textColor="@color/colorTextPrimary"
             android:letterSpacing="-0.02"/>
@@ -37,15 +37,15 @@
     <TextView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Device is now connected to:"
-        android:textSize="14sp"
+        android:text="@string/device_is_now_connected_to"
+        android:textSize="@dimen/text_size_md"
         android:textColor="@color/colorTextSecondary"
-        android:layout_marginBottom="12dp"/>
+        android:layout_marginBottom="@dimen/spacing_md"/>
 
     <androidx.cardview.widget.CardView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginBottom="16dp"
+        android:layout_marginBottom="@dimen/spacing_lg"
         app:cardCornerRadius="12dp"
         app:cardElevation="0dp"
         app:cardBackgroundColor="@color/colorAccentSurface"
@@ -63,14 +63,14 @@
                 android:layout_height="wrap_content"
                 android:orientation="horizontal"
                 android:gravity="center_vertical"
-                android:layout_marginBottom="8dp">
+                android:layout_marginBottom="@dimen/spacing_sm">
 
                 <TextView
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:text="Network:"
-                    android:textSize="12sp"
+                    android:text="@string/network"
+                    android:textSize="@dimen/text_size_sm"
                     android:textColor="@color/colorTextMuted"
                     android:textStyle="bold"
                     android:letterSpacing="0.05"/>
@@ -80,8 +80,8 @@
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:text="Network Name"
-                    android:textSize="13sp"
+                    android:text="@string/network_name"
+                    android:textSize="@dimen/text_size_body_sm"
                     android:textColor="@color/colorTextPrimary"
                     android:textStyle="bold"
                     android:gravity="end"/>
@@ -98,8 +98,8 @@
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:text="Device IP:"
-                    android:textSize="12sp"
+                    android:text="@string/device_ip"
+                    android:textSize="@dimen/text_size_sm"
                     android:textColor="@color/colorTextMuted"
                     android:textStyle="bold"
                     android:letterSpacing="0.05"/>
@@ -109,8 +109,8 @@
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:text="192.168.x.x"
-                    android:textSize="13sp"
+                    android:text="@string/text_192_168_x_x"
+                    android:textSize="@dimen/text_size_body_sm"
                     android:textColor="@color/colorTextPrimary"
                     android:textStyle="bold"
                     android:gravity="end"
@@ -125,11 +125,11 @@
     <TextView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="You can now reconnect your phone to your home WiFi. Use &quot;Find Device&quot; in Settings to confirm the connection."
-        android:textSize="13sp"
+        android:text="@string/you_can_now_reconnect_your"
+        android:textSize="@dimen/text_size_body_sm"
         android:textColor="@color/colorTextSecondary"
         android:lineSpacingExtra="2dp"
-        android:layout_marginBottom="20dp" />
+        android:layout_marginBottom="@dimen/spacing_xl" />
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -141,9 +141,9 @@
             android:id="@+id/btnStayHere"
             android:layout_width="wrap_content"
             android:layout_height="48dp"
-            android:layout_marginEnd="8dp"
+            android:layout_marginEnd="@dimen/spacing_sm"
             android:text="@string/btn_stay_here"
-            android:textSize="13sp"
+            android:textSize="@dimen/text_size_body_sm"
             style="@style/Widget.SmartPetFeeder.Button.Outlined" />
 
         <com.google.android.material.button.MaterialButton
@@ -151,7 +151,7 @@
             android:layout_width="wrap_content"
             android:layout_height="48dp"
             android:text="@string/btn_done"
-            android:textSize="13sp"
+            android:textSize="@dimen/text_size_body_sm"
             style="@style/Widget.SmartPetFeeder.Button" />
 
     </LinearLayout>

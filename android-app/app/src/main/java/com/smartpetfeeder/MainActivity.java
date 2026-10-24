@@ -8,6 +8,7 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.text.InputType;
+import android.view.HapticFeedbackConstants;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.widget.EditText;
@@ -44,6 +45,7 @@ import com.github.mikephil.charting.charts.BarChart;
 import com.github.mikephil.charting.charts.LineChart;
 import com.google.android.material.button.MaterialButton;
 import com.google.android.material.button.MaterialButtonToggleGroup;
+import com.google.android.material.progressindicator.LinearProgressIndicator;
 import com.google.firebase.messaging.FirebaseMessaging;
 import com.smartpetfeeder.adapter.FeedingHistoryAdapter;
 import com.smartpetfeeder.firebase.FirebaseService;
@@ -193,6 +195,8 @@ public class MainActivity extends AppCompatActivity implements FirebaseService.D
     private LiveFeedingStats liveFeeding;
     private View     cardLiveFeeding;
     private TextView tvLiveFeedTarget, tvLiveFeedConsumed, tvLiveFeedRemaining, tvLiveFeedMeta;
+    private LinearProgressIndicator progressLiveFeed;
+    private View skeletonLoading;
     private final Handler liveWeightHandler = new Handler();
     private final Runnable liveWeightTick = new Runnable() {
         @Override public void run() {
@@ -369,6 +373,11 @@ public class MainActivity extends AppCompatActivity implements FirebaseService.D
         tvLiveFeedConsumed = findViewById(R.id.tvLiveFeedConsumed);
         tvLiveFeedRemaining = findViewById(R.id.tvLiveFeedRemaining);
         tvLiveFeedMeta = findViewById(R.id.tvLiveFeedMeta);
+        progressLiveFeed = findViewById(R.id.progressLiveFeed);
+        skeletonLoading = findViewById(R.id.skeletonLoading);
+        if (skeletonLoading != null) {
+            skeletonLoading.startAnimation(android.view.animation.AnimationUtils.loadAnimation(this, R.anim.skeleton_pulse));
+        }
         btnNotifSelect = findViewById(R.id.btnNotifSelect);
         btnNotifSelectAll = findViewById(R.id.btnNotifSelectAll);
         btnNotifDelete = findViewById(R.id.btnNotifDelete);
@@ -481,6 +490,7 @@ public class MainActivity extends AppCompatActivity implements FirebaseService.D
             @Override
             public void onSuccess(org.json.JSONObject response) {
                 restoreManualFeedButton();
+                confirmHaptic();
                 if (firebaseService != null) {
                     firebaseService.recordLocalManualFeed(portionGrams, actionId, null);
                 }
@@ -622,6 +632,7 @@ public class MainActivity extends AppCompatActivity implements FirebaseService.D
 
     private void onTrayOpenAccepted() {
         cancelTrayTimers();
+        confirmHaptic();
         setTrayUi(TrayUi.OPENING);
         trayHandler.postDelayed(() -> { if (trayUi == TrayUi.OPENING) setTrayUi(TrayUi.OPEN); }, trayOpenMs);
         if (!TRAY_AUTO_CLOSE) return;   // stays OPEN until the user taps "Close Tray"
@@ -633,6 +644,7 @@ public class MainActivity extends AppCompatActivity implements FirebaseService.D
     /** Device accepted "close_tray": the return starts now. */
     private void onTrayCloseAccepted() {
         cancelTrayTimers();
+        confirmHaptic();
         setTrayUi(TrayUi.CLOSING);
         scheduleTrayCycleEnd(trayCloseMs + traySettleMs);
     }
@@ -1898,6 +1910,10 @@ public class MainActivity extends AppCompatActivity implements FirebaseService.D
         setTextIfChanged(tvLiveFeedTarget, String.format(Locale.US, "%.1f g", s.getTarget()));
         setTextIfChanged(tvLiveFeedConsumed, String.format(Locale.US, "%.1f g", s.getConsumed()));
         setTextIfChanged(tvLiveFeedRemaining, String.format(Locale.US, "%.1f g", s.getRemaining()));
+        if (progressLiveFeed != null) {
+            float ratio = s.getTarget() > 0f ? s.getConsumed() / s.getTarget() : 0f;
+            progressLiveFeed.setProgressCompat(Math.round(Math.max(0f, Math.min(1f, ratio)) * 100f), true);
+        }
         setTextIfChanged(tvLiveFeedMeta, s.isBowlRemoved()
                 ? "Bowl removed - readings paused"
                 : "Live from the bowl scale");
@@ -2406,6 +2422,10 @@ public class MainActivity extends AppCompatActivity implements FirebaseService.D
         }
     }
 
+    private void confirmHaptic() {
+        getWindow().getDecorView().performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY);
+    }
+
     private void setupDispenseWaterButton() {
         MaterialButton btn = findViewById(R.id.btnDispenseWater);
         if (btn != null) btn.setOnClickListener(v -> showDispenseWaterDialog());
@@ -2454,6 +2474,7 @@ public class MainActivity extends AppCompatActivity implements FirebaseService.D
                 espApiClient.sendWaterCommand(ml, actionId, new EspApiClient.Callback() {
                     @Override public void onSuccess(JSONObject response) {
                         reenable.run();
+                        confirmHaptic();
                         Toast.makeText(MainActivity.this,
                                 String.format(Locale.US, "Dispensing %.0f mL of water", ml),
                                 Toast.LENGTH_LONG).show();

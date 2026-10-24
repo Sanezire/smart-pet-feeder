@@ -1,6 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <style name="Theme.SmartPetFeeder" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+        <item name="android:fontFamily">@font/nunito</item>
+        <item name="fontFamily">@font/nunito</item>
+        <item name="textAppearanceButton">@style/TextAppearance.SmartPetFeeder.Font.Button</item>
+        <item name="textAppearanceBody1">@style/TextAppearance.SmartPetFeeder.Font.Body1</item>
+        <item name="textAppearanceBody2">@style/TextAppearance.SmartPetFeeder.Font.Body2</item>
+        <item name="textAppearanceSubtitle1">@style/TextAppearance.SmartPetFeeder.Font.Subtitle1</item>
+        <item name="textAppearanceSubtitle2">@style/TextAppearance.SmartPetFeeder.Font.Subtitle2</item>
+        <item name="textAppearanceCaption">@style/TextAppearance.SmartPetFeeder.Font.Caption</item>
+        <item name="textAppearanceHeadline6">@style/TextAppearance.SmartPetFeeder.Font.Headline6</item>
+        <item name="textAppearanceOverline">@style/TextAppearance.SmartPetFeeder.Font.Overline</item>
         <item name="colorPrimary">@color/colorPrimary</item>
         <item name="colorPrimaryVariant">@color/colorPrimaryDark</item>
         <item name="colorOnPrimary">@color/colorTextOnPrimary</item>

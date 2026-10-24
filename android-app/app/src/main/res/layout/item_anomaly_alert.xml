@@ -5,7 +5,7 @@
     android:id="@+id/cardAnomalyAlert"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:layout_marginBottom="8dp"
+    android:layout_marginBottom="@dimen/spacing_sm"
     app:cardCornerRadius="14dp"
     app:cardElevation="0dp"
     app:cardBackgroundColor="@color/colorCardAlert"
@@ -38,7 +38,7 @@
                 android:layout_height="36dp"
                 android:gravity="center"
                 android:background="@drawable/badge_anomaly"
-                android:layout_marginEnd="12dp">
+                android:layout_marginEnd="@dimen/spacing_md">
 
                 <ImageView
                     android:id="@+id/ivAlertIcon"
@@ -60,8 +60,8 @@
                     android:id="@+id/tvAlertType"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Missed Feeding"
-                    android:textSize="13sp"
+                    android:text="@string/missed_feeding"
+                    android:textSize="@dimen/text_size_body_sm"
                     android:textStyle="bold"
                     android:textColor="@color/colorStatusAnomaly"/>
 
@@ -70,8 +70,8 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="3dp"
-                    android:text="Scheduled feeding at 08:00 was missed."
-                    android:textSize="12sp"
+                    android:text="@string/scheduled_feeding_at_08_00"
+                    android:textSize="@dimen/text_size_sm"
                     android:textColor="@color/colorTextSecondary"
                     android:maxLines="3"
                     android:ellipsize="end"
@@ -83,7 +83,7 @@
                     android:layout_height="wrap_content"
                     android:layout_marginTop="6dp"
                     android:text="08:00"
-                    android:textSize="11sp"
+                    android:textSize="@dimen/text_size_caption"
                     android:textColor="@color/colorTextMuted"/>
 
             </LinearLayout>

@@ -20,7 +20,7 @@
             android:gravity="center"
             android:background="@color/colorNavBackground"
             android:paddingTop="48dp"
-            android:paddingBottom="32dp">
+            android:paddingBottom="@dimen/spacing_3xl">
 
             <ImageView
                 android:layout_width="60dp"
@@ -35,17 +35,17 @@
                 android:layout_marginTop="14dp"
                 android:text="@string/app_name"
                 android:textColor="#FFFFFF"
-                android:textSize="22sp"
+                android:textSize="@dimen/text_size_2xl"
                 android:textStyle="bold"
                 android:letterSpacing="-0.01"/>
 
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="4dp"
-                android:text="Smart feeding, every time."
+                android:layout_marginTop="@dimen/spacing_xs"
+                android:text="@string/smart_feeding_every_time"
                 android:textColor="@color/colorPrimaryLight"
-                android:textSize="13sp"/>
+                android:textSize="@dimen/text_size_body_sm"/>
 
         </LinearLayout>
 
@@ -58,17 +58,17 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
-            android:paddingStart="24dp"
-            android:paddingEnd="24dp"
-            android:paddingTop="8dp"
-            android:paddingBottom="32dp">
+            android:paddingStart="@dimen/spacing_2xl"
+            android:paddingEnd="@dimen/spacing_2xl"
+            android:paddingTop="@dimen/spacing_sm"
+            android:paddingBottom="@dimen/spacing_3xl">
 
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginBottom="4dp"
+                android:layout_marginBottom="@dimen/spacing_xs"
                 android:text="@string/auth_login_title"
-                android:textSize="26sp"
+                android:textSize="@dimen/text_size_headline"
                 android:textStyle="bold"
                 android:textColor="@color/colorTextPrimary"
                 android:letterSpacing="-0.02"/>
@@ -79,7 +79,7 @@
                 android:layout_marginBottom="28dp"
                 android:text="@string/auth_login_subtitle"
                 android:textColor="@color/colorTextMuted"
-                android:textSize="13sp"/>
+                android:textSize="@dimen/text_size_body_sm"/>
 
             <com.google.android.material.textfield.TextInputLayout
                 android:layout_width="match_parent"
@@ -93,14 +93,14 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:inputType="textEmailAddress"
-                    android:textSize="15sp"
+                    android:textSize="@dimen/text_size_body"
                     android:textColor="@color/colorTextPrimary"/>
             </com.google.android.material.textfield.TextInputLayout>
 
             <com.google.android.material.textfield.TextInputLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginBottom="24dp"
+                android:layout_marginBottom="@dimen/spacing_2xl"
                 android:hint="@string/auth_password"
                 app:endIconMode="password_toggle"
                 style="@style/Widget.SmartPetFeeder.TextInputLayout">
@@ -110,7 +110,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:inputType="textPassword"
-                    android:textSize="15sp"
+                    android:textSize="@dimen/text_size_body"
                     android:textColor="@color/colorTextPrimary"/>
             </com.google.android.material.textfield.TextInputLayout>
 
@@ -119,7 +119,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="52dp"
                 android:text="@string/auth_login"
-                android:textSize="15sp"
+                android:textSize="@dimen/text_size_body"
                 android:textStyle="bold"
                 style="@style/Widget.SmartPetFeeder.Button"/>
 
@@ -137,8 +137,8 @@
                 android:layout_height="wrap_content"
                 android:orientation="horizontal"
                 android:gravity="center_vertical"
-                android:layout_marginTop="24dp"
-                android:layout_marginBottom="16dp">
+                android:layout_marginTop="@dimen/spacing_2xl"
+                android:layout_marginBottom="@dimen/spacing_lg">
 
                 <View
                     android:layout_width="0dp"
@@ -149,11 +149,11 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:paddingStart="12dp"
-                    android:paddingEnd="12dp"
+                    android:paddingStart="@dimen/spacing_md"
+                    android:paddingEnd="@dimen/spacing_md"
                     android:text="or"
                     android:textColor="@color/colorTextMuted"
-                    android:textSize="12sp"/>
+                    android:textSize="@dimen/text_size_sm"/>
 
                 <View
                     android:layout_width="0dp"
@@ -171,17 +171,17 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Don't have an account? "
+                    android:text="@string/don_t_have_an_account"
                     android:textColor="@color/colorTextMuted"
-                    android:textSize="14sp"/>
+                    android:textSize="@dimen/text_size_md"/>
 
                 <TextView
                     android:id="@+id/tvGoRegister"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Register"
+                    android:text="@string/auth_register"
                     android:textColor="@color/colorPrimary"
-                    android:textSize="14sp"
+                    android:textSize="@dimen/text_size_md"
                     android:textStyle="bold"/>
             </LinearLayout>
 

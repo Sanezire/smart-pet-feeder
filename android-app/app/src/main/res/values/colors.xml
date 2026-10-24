@@ -19,15 +19,15 @@
 
     <color name="colorTextPrimary">#2C1810</color>
     <color name="colorTextSecondary">#6B4A35</color>
-    <color name="colorTextMuted">#9E7A61</color>
+    <color name="colorTextMuted">#876853</color>
     <color name="colorTextOnPrimary">#FFFFFF</color>
     <color name="colorTextOnAccent">#FFFFFF</color>
-    <color name="colorTextLabel">#A89080</color>
+    <color name="colorTextLabel">#826959</color>
 
     <color name="colorStatusCompleted">#2D6A4F</color>
-    <color name="colorStatusMissed">#C45A1E</color>
+    <color name="colorStatusMissed">#AB4F1A</color>
     <color name="colorStatusAnomaly">#9B2335</color>
-    <color name="colorStatusWarning">#B8860B</color>
+    <color name="colorStatusWarning">#926A09</color>
 
     <color name="colorBadgeCompleted">#D4EDDA</color>
     <color name="colorBadgeMissed">#FDEBD0</color>
@@ -48,7 +48,7 @@
     <color name="colorOnlineBackground">#E8F5EE</color>
     <color name="colorOnlineForeground">#2D6A4F</color>
     <color name="colorOfflineBackground">#FDEBD0</color>
-    <color name="colorOfflineForeground">#C45A1E</color>
+    <color name="colorOfflineForeground">#AB4F1A</color>
 
     <color name="colorNavBackground">#3A1F0B</color>
     <color name="colorNavActive">#D4731A</color>
