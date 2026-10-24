@@ -1,0 +1,316 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:fillViewport="true">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:paddingStart="@dimen/spacing_2xl"
+        android:paddingEnd="@dimen/spacing_2xl"
+        android:paddingTop="@dimen/spacing_sm">
+
+        <TextView
+            android:id="@+id/tvPetDialogMessage"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/pet_profile_setup_message"
+            android:textSize="@dimen/text_size_md"
+            android:textColor="@color/colorTextSecondary"
+            android:layout_marginBottom="@dimen/spacing_lg"/>
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/pet_profile_name_label"
+            android:textSize="@dimen/text_size_sm"
+            android:textStyle="bold"
+            android:textColor="@color/colorTextLabel"
+            android:layout_marginBottom="@dimen/spacing_sm"/>
+
+        <EditText
+            android:id="@+id/etPetName"
+            android:layout_width="match_parent"
+            android:layout_height="52dp"
+            android:background="@drawable/bg_input_field"
+            android:inputType="textPersonName|textCapWords"
+            android:maxLength="30"
+            android:maxLines="1"
+            android:paddingStart="@dimen/spacing_lg"
+            android:paddingEnd="@dimen/spacing_lg"
+            android:textSize="@dimen/text_size_lg"
+            android:textColor="@color/colorTextPrimary"
+            android:textColorHint="@color/colorTextMuted"
+            android:importantForAutofill="no"
+            android:layout_marginBottom="@dimen/spacing_lg"/>
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/pet_profile_type_label"
+            android:textSize="@dimen/text_size_sm"
+            android:textStyle="bold"
+            android:textColor="@color/colorTextLabel"
+            android:layout_marginBottom="@dimen/spacing_sm"/>
+
+        <com.google.android.material.button.MaterialButtonToggleGroup
+            android:id="@+id/toggleGroupPetType"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="@dimen/spacing_lg"
+            app:singleSelection="true"
+            app:selectionRequired="true">
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnPetDog"
+                android:layout_width="wrap_content"
+                android:layout_height="36dp"
+                android:text="@string/pet_type_dog"
+                style="@style/Widget.SmartPetFeeder.ToggleButton"/>
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnPetCat"
+                android:layout_width="wrap_content"
+                android:layout_height="36dp"
+                android:text="@string/pet_type_cat"
+                style="@style/Widget.SmartPetFeeder.ToggleButton"/>
+        </com.google.android.material.button.MaterialButtonToggleGroup>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginBottom="@dimen/spacing_lg">
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical"
+                android:layout_marginEnd="@dimen/spacing_sm">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/pet_profile_age_label"
+                    android:textSize="@dimen/text_size_sm"
+                    android:textStyle="bold"
+                    android:textColor="@color/colorTextLabel"
+                    android:layout_marginBottom="@dimen/spacing_sm"/>
+
+                <com.google.android.material.button.MaterialButtonToggleGroup
+                    android:id="@+id/toggleGroupAgeUnit"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="@dimen/spacing_sm"
+                    app:singleSelection="true"
+                    app:selectionRequired="true">
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btnAgeMonths"
+                        android:layout_width="0dp"
+                        android:layout_weight="1"
+                        android:layout_height="36dp"
+                        android:text="@string/pet_age_unit_months"
+                        android:singleLine="true"
+                        android:ellipsize="none"
+                        android:paddingStart="4dp"
+                        android:paddingEnd="4dp"
+                        style="@style/Widget.SmartPetFeeder.ToggleButton"/>
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btnAgeYears"
+                        android:layout_width="0dp"
+                        android:layout_weight="1"
+                        android:layout_height="36dp"
+                        android:text="@string/pet_age_unit_years"
+                        android:singleLine="true"
+                        android:ellipsize="none"
+                        android:paddingStart="4dp"
+                        android:paddingEnd="4dp"
+                        style="@style/Widget.SmartPetFeeder.ToggleButton"/>
+                </com.google.android.material.button.MaterialButtonToggleGroup>
+
+                <EditText
+                    android:id="@+id/etPetAge"
+                    android:layout_width="match_parent"
+                    android:layout_height="52dp"
+                    android:background="@drawable/bg_input_field"
+                    android:inputType="numberDecimal"
+                    android:maxLength="5"
+                    android:paddingStart="@dimen/spacing_lg"
+                    android:paddingEnd="@dimen/spacing_lg"
+                    android:textSize="@dimen/text_size_lg"
+                    android:textColor="@color/colorTextPrimary"
+                    android:textColorHint="@color/colorTextMuted"
+                    android:importantForAutofill="no"/>
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical"
+                android:layout_marginStart="@dimen/spacing_sm">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/pet_profile_weight_label"
+                    android:textSize="@dimen/text_size_sm"
+                    android:textStyle="bold"
+                    android:textColor="@color/colorTextLabel"
+                    android:layout_marginBottom="@dimen/spacing_sm"/>
+
+                <EditText
+                    android:id="@+id/etPetWeight"
+                    android:layout_width="match_parent"
+                    android:layout_height="52dp"
+                    android:background="@drawable/bg_input_field"
+                    android:inputType="numberDecimal"
+                    android:maxLength="6"
+                    android:paddingStart="@dimen/spacing_lg"
+                    android:paddingEnd="@dimen/spacing_lg"
+                    android:textSize="@dimen/text_size_lg"
+                    android:textColor="@color/colorTextPrimary"
+                    android:textColorHint="@color/colorTextMuted"
+                    android:importantForAutofill="no"/>
+            </LinearLayout>
+        </LinearLayout>
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/pet_profile_activity_label"
+            android:textSize="@dimen/text_size_sm"
+            android:textStyle="bold"
+            android:textColor="@color/colorTextLabel"
+            android:layout_marginBottom="@dimen/spacing_sm"/>
+
+        <HorizontalScrollView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:scrollbars="none"
+            android:overScrollMode="ifContentScrolls"
+            android:layout_marginBottom="@dimen/spacing_lg">
+
+            <com.google.android.material.button.MaterialButtonToggleGroup
+            android:id="@+id/toggleGroupPetActivity"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            app:singleSelection="true"
+            app:selectionRequired="true">
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnActivityLow"
+                android:layout_width="wrap_content"
+                android:layout_height="36dp"
+                android:text="@string/activity_low"
+                style="@style/Widget.SmartPetFeeder.ToggleButton"/>
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnActivityModerate"
+                android:layout_width="wrap_content"
+                android:layout_height="36dp"
+                android:text="@string/activity_moderate"
+                style="@style/Widget.SmartPetFeeder.ToggleButton"/>
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnActivityHigh"
+                android:layout_width="wrap_content"
+                android:layout_height="36dp"
+                android:text="@string/activity_high"
+                style="@style/Widget.SmartPetFeeder.ToggleButton"/>
+        </com.google.android.material.button.MaterialButtonToggleGroup>
+
+        </HorizontalScrollView>
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/pet_profile_feedings_label"
+            android:textSize="@dimen/text_size_sm"
+            android:textStyle="bold"
+            android:textColor="@color/colorTextLabel"
+            android:layout_marginBottom="@dimen/spacing_sm"/>
+
+        <HorizontalScrollView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:scrollbars="none"
+            android:overScrollMode="ifContentScrolls"
+            android:layout_marginBottom="@dimen/spacing_sm">
+
+            <com.google.android.material.button.MaterialButtonToggleGroup
+            android:id="@+id/toggleGroupFeedings"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            app:singleSelection="true"
+            app:selectionRequired="true">
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnFeed1"
+                android:layout_width="wrap_content"
+                android:layout_height="36dp"
+                android:text="1"
+                style="@style/Widget.SmartPetFeeder.ToggleButton"/>
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnFeed2"
+                android:layout_width="wrap_content"
+                android:layout_height="36dp"
+                android:text="2"
+                style="@style/Widget.SmartPetFeeder.ToggleButton"/>
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnFeed3"
+                android:layout_width="wrap_content"
+                android:layout_height="36dp"
+                android:text="3"
+                style="@style/Widget.SmartPetFeeder.ToggleButton"/>
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnFeed4"
+                android:layout_width="wrap_content"
+                android:layout_height="36dp"
+                android:text="4"
+                style="@style/Widget.SmartPetFeeder.ToggleButton"/>
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnFeed5"
+                android:layout_width="wrap_content"
+                android:layout_height="36dp"
+                android:text="5"
+                style="@style/Widget.SmartPetFeeder.ToggleButton"/>
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnFeed6"
+                android:layout_width="wrap_content"
+                android:layout_height="36dp"
+                android:text="6"
+                style="@style/Widget.SmartPetFeeder.ToggleButton"/>
+        </com.google.android.material.button.MaterialButtonToggleGroup>
+
+        </HorizontalScrollView>
+
+        <TextView
+            android:id="@+id/tvFeedingsPreview"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textSize="@dimen/text_size_md"
+            android:textStyle="bold"
+            android:textColor="@color/colorPrimary"
+            android:layout_marginBottom="@dimen/spacing_lg"/>
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/recommended_food_estimate"
+            android:textSize="@dimen/text_size_sm"
+            android:textColor="@color/colorTextMuted"
+            android:layout_marginBottom="@dimen/spacing_sm"/>
+    </LinearLayout>
+</ScrollView>

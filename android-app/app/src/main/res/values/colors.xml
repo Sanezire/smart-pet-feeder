@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="colorPrimary">#5C3317</color>
+    <color name="colorPrimaryDark">#3A1F0B</color>
+    <color name="colorPrimaryMedium">#8B5E3C</color>
+    <color name="colorPrimaryLight">#C4956A</color>
+    <color name="colorPrimaryExtraLight">#F2E8DE</color>
+
+    <color name="colorSecondary">#3A1F0B</color>
+    <color name="colorAccent">#D4731A</color>
+    <color name="colorAccentLight">#F5C27A</color>
+    <color name="colorAccentSurface">#FFF3E0</color>
+
+    <color name="colorBackground">#F8F3EE</color>
+    <color name="colorBackgroundDeep">#F0E8DF</color>
+    <color name="colorSurface">#FFFFFF</color>
+    <color name="colorSurfaceWarm">#FDFAF7</color>
+    <color name="colorSurfaceElevated">#FFFFFF</color>
+
+    <color name="colorTextPrimary">#2C1810</color>
+    <color name="colorTextSecondary">#6B4A35</color>
+    <color name="colorTextMuted">#9E7A61</color>
+    <color name="colorTextOnPrimary">#FFFFFF</color>
+    <color name="colorTextOnAccent">#FFFFFF</color>
+    <color name="colorTextLabel">#A89080</color>
+
+    <color name="colorStatusCompleted">#2D6A4F</color>
+    <color name="colorStatusMissed">#C45A1E</color>
+    <color name="colorStatusAnomaly">#9B2335</color>
+    <color name="colorStatusWarning">#B8860B</color>
+
+    <color name="colorBadgeCompleted">#D4EDDA</color>
+    <color name="colorBadgeMissed">#FDEBD0</color>
+    <color name="colorBadgeAnomaly">#FBDDE0</color>
+    <color name="colorCardWarning">#FEF9EC</color>
+    <color name="colorCardAlert">#FEF0F2</color>
+
+    <color name="colorChartTarget">#8B5E3C</color>
+    <color name="colorChartActual">#D4731A</color>
+    <color name="colorChartScheduled">#C4956A</color>
+    <color name="colorChartCompleted">#2D6A4F</color>
+
+    <color name="colorDivider">#EAE0D8</color>
+    <color name="colorStroke">#DDD0C4</color>
+    <color name="colorRipple">#265C3317</color>
+    <color name="colorScrim">#80000000</color>
+
+    <color name="colorOnlineBackground">#E8F5EE</color>
+    <color name="colorOnlineForeground">#2D6A4F</color>
+    <color name="colorOfflineBackground">#FDEBD0</color>
+    <color name="colorOfflineForeground">#C45A1E</color>
+
+    <color name="colorNavBackground">#3A1F0B</color>
+    <color name="colorNavActive">#D4731A</color>
+    <color name="colorNavInactive">#FFFFFF</color>
+
+    <color name="colorDayBtnSelectedBg">#5C3317</color>
+    <color name="colorDayBtnSelectedText">#FFFFFF</color>
+    <color name="colorDayBtnUnselectedBg">#FFFFFF</color>
+    <color name="colorDayBtnUnselectedText">#6B4A35</color>
+    <color name="colorDayBtnStroke">#C4956A</color>
+    <color name="colorDayBtnRipple">#335C3317</color>
+
+    <color name="colorSettingsActionText">#5C3317</color>
+    <color name="colorSettingsActionStroke">#5C3317</color>
+
+    <color name="colorPrimaryVariant">@color/colorPrimaryDark</color>
+    <color name="colorDeviationHigh">@color/colorStatusAnomaly</color>
+    <color name="colorDeviationLow">@color/colorStatusMissed</color>
+    <color name="colorCardNormal">@color/colorSurface</color>
+    <color name="colorError">#9B2335</color>
+</resources>

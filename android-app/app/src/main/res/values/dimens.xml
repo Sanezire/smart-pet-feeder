@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <dimen name="spacing_xs">4dp</dimen>
+    <dimen name="spacing_sm">8dp</dimen>
+    <dimen name="spacing_md">12dp</dimen>
+    <dimen name="spacing_lg">16dp</dimen>
+    <dimen name="spacing_xl">20dp</dimen>
+    <dimen name="spacing_2xl">24dp</dimen>
+    <dimen name="spacing_3xl">32dp</dimen>
+    <dimen name="spacing_4xl">40dp</dimen>
+
+    <dimen name="card_corner_radius">16dp</dimen>
+    <dimen name="card_corner_radius_sm">12dp</dimen>
+    <dimen name="card_corner_radius_lg">20dp</dimen>
+    <dimen name="card_elevation">0dp</dimen>
+    <dimen name="card_padding">20dp</dimen>
+    <dimen name="card_padding_sm">16dp</dimen>
+
+    <dimen name="text_size_xs">10sp</dimen>
+    <dimen name="text_size_sm">12sp</dimen>
+    <dimen name="text_size_md">14sp</dimen>
+    <dimen name="text_size_lg">16sp</dimen>
+    <dimen name="text_size_xl">18sp</dimen>
+    <dimen name="text_size_2xl">22sp</dimen>
+    <dimen name="text_size_3xl">28sp</dimen>
+
+    <dimen name="icon_size_xs">16dp</dimen>
+    <dimen name="icon_size_sm">18dp</dimen>
+    <dimen name="icon_size_md">22dp</dimen>
+    <dimen name="icon_size_lg">28dp</dimen>
+    <dimen name="icon_size_xl">36dp</dimen>
+    <dimen name="icon_size_2xl">44dp</dimen>
+    <dimen name="icon_size_3xl">56dp</dimen>
+
+    <dimen name="chart_height">220dp</dimen>
+
+    <dimen name="button_height">52dp</dimen>
+    <dimen name="button_corner_radius">12dp</dimen>
+
+    <dimen name="badge_padding_horizontal">10dp</dimen>
+    <dimen name="badge_padding_vertical">4dp</dimen>
+    <dimen name="badge_corner_radius">6dp</dimen>
+
+    <dimen name="appbar_height">64dp</dimen>
+
+    <dimen name="bottom_nav_height">68dp</dimen>
+    <dimen name="bottom_nav_margin">12dp</dimen>
+
+    <dimen name="page_margin">20dp</dimen>
+
+    <dimen name="accent_bar_width">3dp</dimen>
+    <dimen name="accent_bar_height">18dp</dimen>
+</resources>

@@ -1,0 +1,120 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:background="@color/colorSurface"
+    android:padding="24dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:layout_marginBottom="16dp">
+
+        <ImageView
+            android:layout_width="32dp"
+            android:layout_height="32dp"
+            android:src="@drawable/ic_error"
+            app:tint="@color/colorStatusMissed"
+            android:contentDescription="Error"
+            android:layout_marginEnd="12dp"/>
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Connection Failed"
+            android:textSize="18sp"
+            android:textStyle="bold"
+            android:textColor="@color/colorTextPrimary"
+            android:letterSpacing="-0.02"/>
+
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:layout_marginBottom="16dp">
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Could not connect to:"
+            android:textSize="13sp"
+            android:textColor="@color/colorTextSecondary"
+            android:layout_marginBottom="8dp"/>
+
+        <androidx.cardview.widget.CardView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="14dp"
+            app:cardCornerRadius="12dp"
+            app:cardElevation="0dp"
+            app:cardBackgroundColor="@color/colorCardAlert"
+            app:strokeWidth="1dp"
+            app:strokeColor="@color/colorStatusMissed">
+
+            <TextView
+                android:id="@+id/tvWifiSsid"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Network Name"
+                android:textSize="14sp"
+                android:textColor="@color/colorTextPrimary"
+                android:textStyle="bold"
+                android:padding="14dp"/>
+
+        </androidx.cardview.widget.CardView>
+
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:layout_marginBottom="18dp">
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Reason:"
+            android:textSize="12sp"
+            android:textColor="@color/colorTextMuted"
+            android:textStyle="bold"
+            android:letterSpacing="0.05"
+            android:layout_marginBottom="8dp"/>
+
+        <TextView
+            android:id="@+id/tvErrorReason"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Connection error message"
+            android:textSize="13sp"
+            android:textColor="@color/colorStatusMissed"
+            android:lineSpacingExtra="2dp"/>
+
+    </LinearLayout>
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Please check the network name and password, then try again."
+        android:textSize="13sp"
+        android:textColor="@color/colorTextSecondary"
+        android:lineSpacingExtra="2dp"
+        android:layout_marginBottom="20dp"/>
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/btnRetry"
+        android:layout_width="match_parent"
+        android:layout_height="52dp"
+        android:text="@string/btn_try_again"
+        android:textSize="14sp"
+        android:textStyle="bold"
+        style="@style/Widget.SmartPetFeeder.Button"/>
+
+</LinearLayout>

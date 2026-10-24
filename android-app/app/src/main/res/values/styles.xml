@@ -1,0 +1,284 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <style name="Theme.SmartPetFeeder" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+        <item name="colorPrimary">@color/colorPrimary</item>
+        <item name="colorPrimaryVariant">@color/colorPrimaryDark</item>
+        <item name="colorOnPrimary">@color/colorTextOnPrimary</item>
+        <item name="colorSecondary">@color/colorAccent</item>
+        <item name="colorSecondaryVariant">@color/colorAccent</item>
+        <item name="colorOnSecondary">@color/colorTextOnPrimary</item>
+        <item name="android:colorBackground">@color/colorBackground</item>
+        <item name="colorSurface">@color/colorSurface</item>
+        <item name="colorOnSurface">@color/colorTextPrimary</item>
+        <item name="android:statusBarColor">@color/colorPrimaryDark</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:navigationBarColor">@color/colorBackground</item>
+        <item name="colorControlHighlight">@color/colorRipple</item>
+        <item name="materialButtonStyle">@style/Widget.SmartPetFeeder.Button</item>
+        <item name="textInputStyle">@style/Widget.SmartPetFeeder.TextInputLayout</item>
+        <item name="materialAlertDialogTheme">@style/Theme.SmartPetFeeder.Dialog</item>
+    </style>
+
+    <style name="Theme.SmartPetFeeder.Dialog"
+        parent="ThemeOverlay.MaterialComponents.MaterialAlertDialog">
+        <item name="colorPrimary">@color/colorPrimary</item>
+        <item name="colorSurface">@color/colorSurface</item>
+        <item name="colorOnSurface">@color/colorTextPrimary</item>
+        <item name="android:colorBackground">@color/colorSurface</item>
+        <item name="colorSecondary">@color/colorAccent</item>
+        <item name="shapeAppearanceMediumComponent">
+            @style/ShapeAppearance.SmartPetFeeder.Dialog
+        </item>
+        <item name="materialAlertDialogTitleTextStyle">
+            @style/TextAppearance.SmartPetFeeder.Dialog.Title
+        </item>
+        <item name="materialAlertDialogBodyTextStyle">
+            @style/TextAppearance.SmartPetFeeder.Dialog.Body
+        </item>
+        <item name="buttonBarPositiveButtonStyle">
+            @style/Widget.SmartPetFeeder.Button.Dialog.Positive
+        </item>
+        <item name="buttonBarNegativeButtonStyle">
+            @style/Widget.SmartPetFeeder.Button.Dialog.Negative
+        </item>
+    </style>
+
+    <style name="AlertDialogTheme" parent="Theme.SmartPetFeeder.Dialog"/>
+
+    <style name="ShapeAppearance.SmartPetFeeder.Dialog"
+        parent="ShapeAppearance.MaterialComponents.MediumComponent">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSize">20dp</item>
+    </style>
+
+    <style name="TextAppearance.SmartPetFeeder.Dialog.Title"
+        parent="MaterialAlertDialog.MaterialComponents.Title.Text">
+        <item name="android:textSize">18sp</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:textColor">@color/colorTextPrimary</item>
+        <item name="android:letterSpacing">-0.01</item>
+    </style>
+
+    <style name="TextAppearance.SmartPetFeeder.Dialog.Body"
+        parent="TextAppearance.MaterialComponents.Body1">
+        <item name="android:textSize">14sp</item>
+        <item name="android:textColor">@color/colorTextSecondary</item>
+        <item name="android:lineSpacingExtra">3dp</item>
+    </style>
+
+    <style name="Widget.SmartPetFeeder.Button.Dialog.Positive"
+        parent="Widget.MaterialComponents.Button.TextButton.Dialog">
+        <item name="android:textColor">@color/colorPrimary</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:textSize">14sp</item>
+        <item name="android:textAllCaps">false</item>
+        <item name="rippleColor">@color/colorRipple</item>
+    </style>
+
+    <style name="Widget.SmartPetFeeder.Button.Dialog.Negative"
+        parent="Widget.MaterialComponents.Button.TextButton.Dialog">
+        <item name="android:textColor">@color/colorTextMuted</item>
+        <item name="android:textSize">14sp</item>
+        <item name="android:textAllCaps">false</item>
+        <item name="rippleColor">@color/colorRipple</item>
+    </style>
+
+    <style name="TextAppearance.SmartPetFeeder.Headline5" parent="TextAppearance.MaterialComponents.Headline5">
+        <item name="android:textSize">26sp</item>
+        <item name="android:textColor">@color/colorTextPrimary</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:letterSpacing">-0.02</item>
+    </style>
+
+    <style name="TextAppearance.SmartPetFeeder.Headline6" parent="TextAppearance.MaterialComponents.Headline6">
+        <item name="android:textSize">20sp</item>
+        <item name="android:textColor">@color/colorTextPrimary</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:letterSpacing">-0.01</item>
+    </style>
+
+    <style name="TextAppearance.SmartPetFeeder.Subtitle1" parent="TextAppearance.MaterialComponents.Subtitle1">
+        <item name="android:textSize">15sp</item>
+        <item name="android:textColor">@color/colorTextSecondary</item>
+    </style>
+
+    <style name="TextAppearance.SmartPetFeeder.Body1" parent="TextAppearance.MaterialComponents.Body1">
+        <item name="android:textSize">15sp</item>
+        <item name="android:textColor">@color/colorTextPrimary</item>
+    </style>
+
+    <style name="TextAppearance.SmartPetFeeder.Body2" parent="TextAppearance.MaterialComponents.Body2">
+        <item name="android:textSize">13sp</item>
+        <item name="android:textColor">@color/colorTextSecondary</item>
+    </style>
+
+    <style name="TextAppearance.SmartPetFeeder.Caption" parent="TextAppearance.MaterialComponents.Caption">
+        <item name="android:textSize">11sp</item>
+        <item name="android:textColor">@color/colorTextMuted</item>
+        <item name="android:letterSpacing">0.01</item>
+    </style>
+
+    <style name="Widget.SmartPetFeeder" parent="Widget.MaterialComponents.CardView"/>
+
+    <style name="Widget.SmartPetFeeder.Card" parent="Widget.MaterialComponents.CardView">
+        <item name="cardCornerRadius">16dp</item>
+        <item name="cardElevation">0dp</item>
+        <item name="cardBackgroundColor">@color/colorSurface</item>
+        <item name="strokeWidth">1dp</item>
+        <item name="strokeColor">@color/colorDivider</item>
+        <item name="rippleColor">@color/colorRipple</item>
+    </style>
+
+    <style name="Widget.SmartPetFeeder.Card.Stat" parent="Widget.SmartPetFeeder.Card">
+        <item name="cardCornerRadius">20dp</item>
+    </style>
+
+    <style name="Widget.SmartPetFeeder.Card.Primary" parent="Widget.SmartPetFeeder.Card">
+        <item name="cardCornerRadius">20dp</item>
+        <item name="cardBackgroundColor">@color/colorPrimary</item>
+        <item name="strokeWidth">0dp</item>
+    </style>
+
+    <style name="Widget.SmartPetFeeder.Button" parent="Widget.MaterialComponents.Button">
+        <item name="cornerRadius">12dp</item>
+        <item name="android:textAllCaps">false</item>
+        <item name="android:textSize">14sp</item>
+        <item name="android:letterSpacing">0.01</item>
+        <item name="android:paddingTop">14dp</item>
+        <item name="android:paddingBottom">14dp</item>
+        <item name="android:insetTop">0dp</item>
+        <item name="android:insetBottom">0dp</item>
+        <item name="backgroundTint">@color/colorPrimary</item>
+        <item name="android:textColor">@color/colorTextOnPrimary</item>
+        <item name="android:stateListAnimator">@null</item>
+        <item name="elevation">0dp</item>
+    </style>
+
+    <style name="Widget.SmartPetFeeder.Button.Outlined" parent="Widget.MaterialComponents.Button.OutlinedButton">
+        <item name="cornerRadius">12dp</item>
+        <item name="android:textAllCaps">false</item>
+        <item name="android:textSize">14sp</item>
+        <item name="android:paddingTop">14dp</item>
+        <item name="android:paddingBottom">14dp</item>
+        <item name="android:insetTop">0dp</item>
+        <item name="android:insetBottom">0dp</item>
+        <item name="strokeColor">@color/colorPrimary</item>
+        <item name="strokeWidth">1.5dp</item>
+        <item name="android:textColor">@color/colorPrimary</item>
+        <item name="rippleColor">@color/colorRipple</item>
+    </style>
+
+    <style name="Widget.SmartPetFeeder.Button.Text" parent="Widget.MaterialComponents.Button.TextButton">
+        <item name="cornerRadius">12dp</item>
+        <item name="android:textAllCaps">false</item>
+        <item name="android:textSize">14sp</item>
+        <item name="android:textColor">@color/colorPrimary</item>
+        <item name="rippleColor">@color/colorRipple</item>
+    </style>
+
+    <style name="Widget.SmartPetFeeder.Button.Destructive" parent="Widget.SmartPetFeeder.Button">
+        <item name="backgroundTint">@color/colorStatusAnomaly</item>
+    </style>
+
+    <style name="Widget.SmartPetFeeder.TextInputLayout" parent="Widget.MaterialComponents.TextInputLayout.OutlinedBox">
+        <item name="boxCornerRadiusTopStart">12dp</item>
+        <item name="boxCornerRadiusTopEnd">12dp</item>
+        <item name="boxCornerRadiusBottomStart">12dp</item>
+        <item name="boxCornerRadiusBottomEnd">12dp</item>
+        <item name="boxStrokeColor">@color/text_input_stroke</item>
+        <item name="hintTextColor">@color/colorTextMuted</item>
+        <item name="boxStrokeWidth">1.5dp</item>
+        <item name="boxStrokeWidthFocused">2dp</item>
+        <item name="boxBackgroundColor">@color/colorSurface</item>
+    </style>
+
+    <style name="Widget.SmartPetFeeder.SectionHeader">
+        <item name="android:textSize">11sp</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:textColor">@color/colorTextLabel</item>
+        <item name="android:letterSpacing">0.08</item>
+        <item name="android:textAllCaps">true</item>
+    </style>
+
+    <style name="Widget.SmartPetFeeder.ToggleButton" parent="Widget.MaterialComponents.Button.OutlinedButton">
+        <item name="android:textAllCaps">false</item>
+        <item name="android:textSize">12sp</item>
+        <item name="android:textColor">@color/toggle_btn_text</item>
+        <item name="backgroundTint">@color/toggle_btn_bg</item>
+        <item name="strokeColor">@color/toggle_btn_stroke</item>
+        <item name="strokeWidth">1.5dp</item>
+        <item name="rippleColor">@color/colorRipple</item>
+        <item name="cornerRadius">24dp</item>
+        <item name="android:paddingTop">6dp</item>
+        <item name="android:paddingBottom">6dp</item>
+        <item name="android:paddingStart">16dp</item>
+        <item name="android:paddingEnd">16dp</item>
+        <item name="android:insetTop">0dp</item>
+        <item name="android:insetBottom">0dp</item>
+        <item name="android:minHeight">0dp</item>
+        <item name="elevation">0dp</item>
+    </style>
+
+    <style name="Widget.SmartPetFeeder.DayButton" parent="Widget.MaterialComponents.Button.OutlinedButton">
+        <item name="android:textAllCaps">false</item>
+        <item name="android:textSize">13sp</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:letterSpacing">0.0</item>
+        <item name="strokeWidth">1.5dp</item>
+        <item name="cornerRadius">12dp</item>
+        <item name="android:paddingTop">0dp</item>
+        <item name="android:paddingBottom">0dp</item>
+        <item name="android:paddingStart">4dp</item>
+        <item name="android:paddingEnd">4dp</item>
+        <item name="android:insetTop">0dp</item>
+        <item name="android:insetBottom">0dp</item>
+        <item name="android:minHeight">0dp</item>
+        <item name="android:minWidth">0dp</item>
+        <item name="elevation">0dp</item>
+        <item name="android:stateListAnimator">@null</item>
+    </style>
+
+    <style name="Widget.SmartPetFeeder.Button.SettingsAction" parent="Widget.MaterialComponents.Button.OutlinedButton">
+        <item name="cornerRadius">10dp</item>
+        <item name="android:textAllCaps">false</item>
+        <item name="android:textSize">13sp</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:paddingTop">10dp</item>
+        <item name="android:paddingBottom">10dp</item>
+        <item name="android:paddingStart">16dp</item>
+        <item name="android:paddingEnd">16dp</item>
+        <item name="android:insetTop">0dp</item>
+        <item name="android:insetBottom">0dp</item>
+        <item name="strokeColor">@color/colorSettingsActionStroke</item>
+        <item name="strokeWidth">1.5dp</item>
+        <item name="android:textColor">@color/colorSettingsActionText</item>
+        <item name="rippleColor">@color/colorRipple</item>
+        <item name="elevation">0dp</item>
+    </style>
+
+    <style name="Widget.SmartPetFeeder.PinKey" parent="Widget.MaterialComponents.Button.TextButton">
+        <item name="android:textSize">24sp</item>
+        <item name="android:textColor">@color/colorTextPrimary</item>
+        <item name="backgroundTint">@color/colorSurface</item>
+        <item name="rippleColor">@color/colorRipple</item>
+        <item name="cornerRadius">36dp</item>
+        <item name="android:textAllCaps">false</item>
+        <item name="android:minWidth">0dp</item>
+        <item name="android:minHeight">0dp</item>
+        <item name="android:insetTop">0dp</item>
+        <item name="android:insetBottom">0dp</item>
+    </style>
+
+    <style name="Widget.SmartPetFeeder.Badge">
+        <item name="android:paddingStart">10dp</item>
+        <item name="android:paddingEnd">10dp</item>
+        <item name="android:paddingTop">4dp</item>
+        <item name="android:paddingBottom">4dp</item>
+        <item name="android:textSize">10sp</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:textAllCaps">true</item>
+        <item name="android:letterSpacing">0.04</item>
+    </style>
+
+</resources>

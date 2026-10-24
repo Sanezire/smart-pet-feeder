@@ -1,0 +1,57 @@
+# ===== Android (android-app/) =====
+android-app/.gradle/
+android-app/build/
+android-app/app/build/
+android-app/app/release/
+android-app/app/debug/
+android-app/captures/
+android-app/.externalNativeBuild/
+android-app/.cxx/
+android-app/local.properties
+android-app/.idea/
+android-app/*.iml
+android-app/app/*.iml
+
+# Firebase config (contains API key)
+android-app/app/google-services.json
+
+# Signing keys
+*.jks
+*.keystore
+keystore.properties
+
+# Generated artifacts
+*.apk
+*.aab
+*.ap_
+*.dex
+*.class
+*.log
+bin/
+gen/
+out/
+
+# ===== Arduino (pet-feeder/) =====
+pet-feeder/build/
+pet-feeder/*.elf
+pet-feeder/*.bin
+pet-feeder/*.hex
+pet-feeder/*.map
+pet-feeder/*.eep
+pet-feeder/*.lst
+pet-feeder/*.o
+pet-feeder/*.a
+pet-feeder/*.d
+pet-feeder/.vscode/
+pet-feeder/secrets.h
+pet-feeder/credentials.h
+
+# ===== General =====
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+*.swp
+*~
+.env
+.env.*
