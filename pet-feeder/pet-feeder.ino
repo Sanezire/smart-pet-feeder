@@ -10,6 +10,7 @@
 #include <sys/time.h>
 #include <WiFiClientSecureBearSSL.h>
 #include "HX711.h"
+#include "jsqr_gz.h"
 
 #define PIN_SERVO         D3   // GPIO14 - no boot-strap behaviour
 #define PIN_TRAY          D8
@@ -2072,6 +2073,104 @@ void handleSchedules() {
   server.send(200, "application/json", out);
 }
 
+static const char SCANNER_JS[] PROGMEM = R"rawliteral(
+(function(){
+var $=function(i){return document.getElementById(i);};
+var msg=$('msg'),loading=null;
+function say(t,c){msg.className='msg'+(c?' '+c:'');msg.textContent=t;}
+function loadDecoder(){
+  if(window.jsQR)return Promise.resolve();
+  if(!loading)loading=new Promise(function(ok,no){
+    var s=document.createElement('script');
+    s.src='/jsqr.js';
+    s.onload=ok;
+    s.onerror=function(){loading=null;no(new Error('Could not load the QR decoder from the feeder.'));};
+    document.head.appendChild(s);
+  });
+  return loading;
+}
+function parseWifiQr(raw){
+  var t=(raw||'').trim();
+  if(t.indexOf('WIFI:')!==0)return null;
+  var f={},seg='',esc=false;
+  function put(){var i=seg.indexOf(':');if(i>0)f[seg.slice(0,i)]=seg.slice(i+1);seg='';}
+  for(var i=5;i<t.length;i++){
+    var c=t.charAt(i);
+    if(esc){seg+=c;esc=false;}
+    else if(c==='\\')esc=true;
+    else if(c===';')put();
+    else seg+=c;
+  }
+  put();
+  if(!f.S)return null;
+  var type=(f.T||'WPA').toUpperCase();
+  return {ssid:f.S,pw:type==='NOPASS'?'':(f.P||''),type:type};
+}
+function viaImg(file){
+  return new Promise(function(ok,no){
+    var url=URL.createObjectURL(file),im=new Image();
+    im.onload=function(){URL.revokeObjectURL(url);ok(im);};
+    im.onerror=function(){URL.revokeObjectURL(url);no(new Error('That file is not an image.'));};
+    im.src=url;
+  });
+}
+function loadImage(file){
+  if(window.createImageBitmap)return createImageBitmap(file).catch(function(){return viaImg(file);});
+  return viaImg(file);
+}
+function decode(img){
+  var w=img.naturalWidth||img.width,h=img.naturalHeight||img.height;
+  var cv=document.createElement('canvas'),cx=cv.getContext('2d',{willReadFrequently:true});
+  var sizes=[1000,640,1600],last=0;
+  for(var i=0;i<sizes.length;i++){
+    var sc=Math.min(1,sizes[i]/Math.max(w,h));
+    if(sc===last)continue;
+    last=sc;
+    cv.width=Math.max(1,Math.round(w*sc));
+    cv.height=Math.max(1,Math.round(h*sc));
+    cx.drawImage(img,0,0,cv.width,cv.height);
+    var d=cx.getImageData(0,0,cv.width,cv.height);
+    var r=jsQR(d.data,d.width,d.height,{inversionAttempts:'attemptBoth'});
+    if(r&&r.data)return r.data;
+  }
+  return null;
+}
+async function handle(file){
+  if(!file)return;
+  say('Reading QR code...');
+  try{
+    await loadDecoder();
+    var img=await loadImage(file);
+    await new Promise(function(r){setTimeout(r,30);});
+    var text=decode(img);
+    if(img.close)img.close();
+    if(!text){say('No QR code found. Fit the whole code in the photo, hold steady, and try again.','err');return;}
+    var w=parseWifiQr(text);
+    if(!w){say('That QR code is not a WiFi network code.','err');return;}
+    $('ssid').value=w.ssid;
+    $('pw').value=w.pw;
+    say('Filled in "'+w.ssid+'". Check the details, then tap Configure Device.'+(w.type==='SAE'?' Note: the feeder cannot join WPA3-only networks.':''),'ok');
+  }catch(e){say('Scan failed: '+(e.message||e),'err');}
+}
+$('scanBox').hidden=false;
+$('btnScan').onclick=function(){loadDecoder().catch(function(){});$('qrCam').click();};
+['qrCam','qrPick'].forEach(function(id){
+  $(id).onchange=function(e){var f=e.target.files[0];e.target.value='';handle(f);};
+});
+})();
+)rawliteral";
+
+void handleScannerJs() {
+  server.sendHeader("Cache-Control", "no-cache");
+  server.send_P(200, "application/javascript", SCANNER_JS);
+}
+
+void handleJsQrJs() {
+  server.sendHeader("Content-Encoding", "gzip");
+  server.sendHeader("Cache-Control", "max-age=604800");
+  server.send_P(200, "application/javascript", (PGM_P)JSQR_GZ, JSQR_GZ_LEN);
+}
+
 void handleRoot() {
   String modeLabel = (currentMode == MODE_STATION) ? "Connected" : "Setup Mode";
   String currentIp = (currentMode == MODE_STATION) ? WiFi.localIP().toString() : String(AP_IP_ADDR);
@@ -2100,6 +2199,9 @@ void handleRoot() {
     "button:disabled{opacity:.55;cursor:not-allowed}.hint{margin-top:10px;color:var(--muted);font-size:12px;line-height:1.45}"
     ".msg{margin-top:10px;padding:10px 12px;border-radius:10px;background:#FFF3E0;color:var(--text);border:1px solid #F5C27A;font-size:13px;min-height:38px;line-height:1.4}"
     ".ok{color:var(--ok)}.err{color:var(--err)}"
+    ".btn-scan{display:flex;align-items:center;justify-content:center;gap:8px;background:#FFFFFF;border:1.5px solid var(--accent);color:var(--accent)}"
+    ".lnk{color:var(--accent2);font-weight:600;text-decoration:underline;cursor:pointer}"
+    ".or{display:flex;align-items:center;gap:10px;margin:14px 0 12px;color:var(--muted);font-size:12px}.or:before,.or:after{content:'';flex:1;height:1px;background:var(--line)}"
     "</style></head><body>"
     "<div class='wrap'>"
     "<div class='hero'><h1>Smart Pet Feeder</h1><p>WiFi Provisioning Portal</p></div>"
@@ -2109,6 +2211,15 @@ void handleRoot() {
     "<div class='row'><span class='k'>SSID</span><span class='v'>" + currentSsid + "</span></div>"
     "</div>"
     "<div class='card'><p class='label'>Configure WiFi</p>"
+    "<div id='scanBox' hidden>"
+    "<button type='button' class='btn-scan' id='btnScan'>"
+    "<svg width='18' height='18' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linejoin='round' aria-hidden='true'><rect x='3' y='3' width='7' height='7' rx='1'/><rect x='14' y='3' width='7' height='7' rx='1'/><rect x='3' y='14' width='7' height='7' rx='1'/><path d='M14 14h3v3h-3zM20 14v1M14 20h1M18 18h3v3h-3z'/></svg>"
+    "Scan WiFi QR code</button>"
+    "<div class='hint'>Take a photo of the QR code on your router, or <label for='qrPick' class='lnk'>choose a saved image</label>.</div>"
+    "<div class='or'>or enter it manually</div>"
+    "<input id='qrCam' type='file' accept='image/*' capture='environment' hidden>"
+    "<input id='qrPick' type='file' accept='image/*' hidden>"
+    "</div>"
     "<input id='ssid' type='text' placeholder='Home WiFi SSID' autocomplete='off'>"
     "<input id='pw' type='password' placeholder='WiFi Password (leave blank if open)' autocomplete='off'>"
     "<button id='btnCfg' onclick='cfg()'>Configure Device</button>"
@@ -2149,7 +2260,7 @@ void handleRoot() {
     " }catch(e){msg.className='msg err';msg.textContent='Reset error: '+(e.message||e);}"
     " setTimeout(()=>{document.getElementById('btnReset').disabled=false;},1200);"
     "}"
-    "</script></body></html>";
+    "</script><script src='/scanner.js'></script></body></html>";
 
   server.send(200, "text/html", html);
 }
@@ -2203,6 +2314,8 @@ void setupWebServer() {
   server.on("/configure",  HTTP_POST,    handleConfigure);
   server.on("/configure",  HTTP_OPTIONS, handleConfigure);
   server.on("/provisioning/session", HTTP_GET, handleProvisioningSession);
+  server.on("/scanner.js", HTTP_GET,     handleScannerJs);
+  server.on("/jsqr.js",    HTTP_GET,     handleJsQrJs);
   server.on("/status",     HTTP_GET,     handleStatus);
   server.on("/reset-wifi", HTTP_POST,    handleResetWifi);
   server.on("/reset-wifi", HTTP_OPTIONS, handleResetWifi);
