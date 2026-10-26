@@ -81,10 +81,10 @@
 #define TRAY_CLOSE_US             1300
 #define TRAY2_OPEN_US             (2 * TRAY_NEUTRAL_US - TRAY_OPEN_US)   // opposite rotation of tray 1
 #define TRAY2_CLOSE_US            (2 * TRAY_NEUTRAL_US - TRAY_CLOSE_US)
-#define TRAY_OPEN_MS              10000UL // [CALIBRATE] time spent turning in the opening direction
+#define TRAY_OPEN_MS              4000UL  // [CALIBRATE] time spent turning in the opening direction
 #define TRAY_AUTO_CLOSE           0
 #define TRAY_HOLD_MS              5000UL
-#define TRAY_CLOSE_MS             10000UL
+#define TRAY_CLOSE_MS             4000UL
 #define TRAY_SETTLE_MS            400UL
 #define TRAY_COOLDOWN_MS          2000UL
 #define TRAY_OK                   0
