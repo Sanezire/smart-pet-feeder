@@ -2301,8 +2301,7 @@ void setupWebServer() {
   server.on("/canonical.html",            HTTP_ANY, handleCaptiveProbe);
   server.on("/success.txt",               HTTP_ANY, handleCaptiveProbe);
   server.onNotFound(handleNotFound);
-  static const char* collectedHeaders[] = {"X-Feeder-Restart"};
-  server.collectHeaders(collectedHeaders, 1);
+  server.collectHeaders("X-Feeder-Restart");
   server.begin();
   Serial.println("[HTTP] Server started on port 80");
 }
