@@ -78,10 +78,10 @@
 #define TRAY_NEUTRAL_US           1500   // [CALIBRATE] stop command (microseconds)
 #define TRAY_OPEN_US              1700   // [CALIBRATE] opening direction / speed
 #define TRAY_CLOSE_US             1300
-#define TRAY_OPEN_MS              15000UL // [CALIBRATE] time spent turning in the opening direction
+#define TRAY_OPEN_MS              10000UL // [CALIBRATE] time spent turning in the opening direction
 #define TRAY_AUTO_CLOSE           0
 #define TRAY_HOLD_MS              5000UL
-#define TRAY_CLOSE_MS             15000UL
+#define TRAY_CLOSE_MS             10000UL
 #define TRAY_SETTLE_MS            400UL
 #define TRAY_COOLDOWN_MS          2000UL
 #define TRAY_OK                   0

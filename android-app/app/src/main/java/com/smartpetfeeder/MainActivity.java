@@ -527,10 +527,10 @@ public class MainActivity extends AppCompatActivity implements FirebaseService.D
                 });
     }
 
-    private static final long TRAY_OPEN_RUN_MS  = 15000L;
+    private static final long TRAY_OPEN_RUN_MS  = 10000L;
     private static final boolean TRAY_AUTO_CLOSE = false;
     private static final long TRAY_HOLD_MS      = 5000L;   // only used when TRAY_AUTO_CLOSE is true
-    private static final long TRAY_CLOSE_RUN_MS = 15000L;
+    private static final long TRAY_CLOSE_RUN_MS = 10000L;
     private static final long TRAY_SETTLE_MS    = 400L;
     private static final long TRAY_COOLDOWN_MS  = 2000L;
     private static final long TRAY_CLOUD_GRACE_MS = 8000L;
