@@ -27,6 +27,7 @@ public class SettingsActivity extends AppCompatActivity {
     private TextView    tvApInfo;
     private Button      btnChangeWifi;
     private Button      btnResetWifi;
+    private Button      btnRestart;
     private Button      btnRefresh;
     private ProgressBar progressBar;
     private LinearLayout layoutConnected;
@@ -86,6 +87,7 @@ public class SettingsActivity extends AppCompatActivity {
         tvApInfo           = findViewById(R.id.tvSettingsApInfo);
         btnChangeWifi      = findViewById(R.id.btnSettingsChangeWifi);
         btnResetWifi       = findViewById(R.id.btnSettingsResetWifi);
+        btnRestart         = findViewById(R.id.btnSettingsRestart);
         btnRefresh         = findViewById(R.id.btnSettingsRefresh);
         progressBar        = findViewById(R.id.progressBarSettings);
         layoutConnected    = findViewById(R.id.layoutSettingsConnected);
@@ -101,6 +103,7 @@ public class SettingsActivity extends AppCompatActivity {
         });
 
         btnResetWifi.setOnClickListener(v -> confirmReset());
+        btnRestart.setOnClickListener(v -> confirmRestart());
     }
 
     private void refreshStatus() {
@@ -234,6 +237,44 @@ public class SettingsActivity extends AppCompatActivity {
         });
     }
 
+    private void confirmRestart() {
+        new AlertDialog.Builder(this)
+                .setTitle("Restart Feeder?")
+                .setMessage("The feeder will reboot and come back online in about 15 seconds. "
+                        + "Your WiFi settings are kept.")
+                .setPositiveButton("Restart", (d, w) -> performRestart())
+                .setNegativeButton("Cancel", null)
+                .show();
+    }
+
+    private void performRestart() {
+        if (espClient == null) {
+            Toast.makeText(this, "Device not reachable.", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        setLoading(true);
+        tvConnectionStatus.setText("Restarting feeder…");
+
+        espClient.restartDevice(new EspApiClient.Callback() {
+            @Override
+            public void onSuccess(JSONObject response) {
+                Toast.makeText(SettingsActivity.this,
+                        "Feeder is restarting. Reconnecting shortly…", Toast.LENGTH_LONG).show();
+                uiHandler.postDelayed(() -> {
+                    if (!isFinishing() && !isDestroyed()) refreshStatus();
+                }, 15_000L);
+            }
+
+            @Override
+            public void onError(String errorMessage) {
+                setLoading(false);
+                Toast.makeText(SettingsActivity.this,
+                        "Restart failed: " + errorMessage, Toast.LENGTH_LONG).show();
+            }
+        });
+    }
+
     private void showConnectedState(String ssid, String ip, int rssi) {
         tvConnectionStatus.setText("● Connected");
         tvConnectionStatus.setTextColor(getColor(R.color.colorStatusCompleted));
@@ -244,6 +285,7 @@ public class SettingsActivity extends AppCompatActivity {
         layoutConnected.setVisibility(View.VISIBLE);
         layoutDisconnected.setVisibility(View.GONE);
         btnResetWifi.setVisibility(View.VISIBLE);
+        btnRestart.setVisibility(View.VISIBLE);
         tvApInfo.setVisibility(View.GONE);
     }
 
@@ -255,6 +297,7 @@ public class SettingsActivity extends AppCompatActivity {
         layoutConnected.setVisibility(View.GONE);
         layoutDisconnected.setVisibility(View.VISIBLE);
         btnResetWifi.setVisibility(View.GONE);
+        btnRestart.setVisibility(View.GONE);
         tvApInfo.setVisibility(View.VISIBLE);
     }
 
@@ -263,5 +306,6 @@ public class SettingsActivity extends AppCompatActivity {
         btnRefresh.setEnabled(!loading);
         btnChangeWifi.setEnabled(!loading);
         btnResetWifi.setEnabled(!loading);
+        btnRestart.setEnabled(!loading);
     }
 }

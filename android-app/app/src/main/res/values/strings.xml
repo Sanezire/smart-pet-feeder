@@ -117,6 +117,7 @@
 
     <string name="btn_change_wifi">Change WiFi Network</string>
     <string name="btn_reset_wifi_settings">Reset Device WiFi</string>
+    <string name="btn_restart_device">Restart Feeder</string>
     <string name="btn_refresh">Refresh</string>
 
     <string name="settings_ap_description">If the device has no network configured, it broadcasts:</string>

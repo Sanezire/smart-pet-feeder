@@ -142,6 +142,19 @@ public class EspApiClient {
         });
     }
 
+    public void restartDevice(Callback callback) {
+        executor.execute(() -> {
+            try {
+                JSONObject response = post("/restart", "{}",
+                        TIMEOUT_CONNECT, TIMEOUT_READ, "X-Feeder-Restart", "1");
+                mainHandler.post(() -> callback.onSuccess(response));
+            } catch (Exception e) {
+                Log.e(TAG, "restartDevice error", e);
+                mainHandler.post(() -> callback.onError(e.getMessage()));
+            }
+        });
+    }
+
     public void feedNow(Callback callback) {
         executor.execute(() -> {
             try {
@@ -286,6 +299,12 @@ public class EspApiClient {
 
     private JSONObject post(String path, String jsonBody,
                             int connectTimeout, int readTimeout) throws Exception {
+        return post(path, jsonBody, connectTimeout, readTimeout, null, null);
+    }
+
+    private JSONObject post(String path, String jsonBody,
+                            int connectTimeout, int readTimeout,
+                            String extraHeader, String extraValue) throws Exception {
         URL url = new URL(baseUrl + path);
         HttpURLConnection conn = (HttpURLConnection) url.openConnection();
         conn.setConnectTimeout(connectTimeout);
@@ -293,6 +312,7 @@ public class EspApiClient {
         conn.setRequestMethod("POST");
         conn.setRequestProperty("Content-Type", "application/json");
         conn.setRequestProperty("Accept",       "application/json");
+        if (extraHeader != null) conn.setRequestProperty(extraHeader, extraValue);
         conn.setDoOutput(true);
 
         byte[] bodyBytes = jsonBody.getBytes(StandardCharsets.UTF_8);

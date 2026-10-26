@@ -248,6 +248,16 @@
                     android:visibility="gone"
                     style="@style/Widget.SmartPetFeeder.Button.Destructive"/>
 
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnSettingsRestart"
+                    android:layout_width="match_parent"
+                    android:layout_height="52dp"
+                    android:layout_marginTop="10dp"
+                    android:text="@string/btn_restart_device"
+                    android:textSize="14sp"
+                    android:visibility="gone"
+                    style="@style/Widget.SmartPetFeeder.Button"/>
+
             </LinearLayout>
         </androidx.cardview.widget.CardView>
 
