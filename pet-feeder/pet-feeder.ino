@@ -13,7 +13,7 @@
 
 #define PIN_SERVO         D3   // GPIO14 - no boot-strap behaviour
 #define PIN_TRAY          D8
-#define PIN_TRAY2         D5   // second tray servo, mirrors D8 in the opposite direction
+#define PIN_TRAY2         D4   // second tray servo, mirrors D8 in the opposite direction
 #define PIN_RELAY         D1   // GPIO5 - water valve / pump relay
 #define PIN_FLOW_SENSOR   D2   // GPIO4 - YF-S201 pulse output
 #define PIN_FOOD_SENSOR   A0
