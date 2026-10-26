@@ -1984,6 +1984,18 @@ void handleResetWifi() {
   ESP.restart();
 }
 
+void handleRestart() {
+  // No CORS headers and a custom request header: other websites cannot trigger a restart.
+  if (server.header("X-Feeder-Restart") != "1") {
+    server.send(403, "application/json", "{\"error\":\"Forbidden\"}");
+    return;
+  }
+  server.send(200, "application/json",
+    "{\"status\":\"ok\",\"message\":\"Restarting device\"}");
+  delay(300);
+  ESP.restart();
+}
+
 void handleFeedNow() {
   addCORSHeaders();
 
@@ -2161,7 +2173,12 @@ void handleRoot() {
     "<button class='btn-secondary' id='btnReset' onclick='resetWifi()'>Reset WiFi Credentials</button>"
     "<div id='msg' class='msg'>Ready to configure.</div>"
     "<div class='hint'>After success, reconnect your phone to your home WiFi and open the app.</div>"
-    "</div></div>"
+    "</div>"
+    "<div class='card'><p class='label'>Device</p>"
+    "<button id='btnRestart' onclick='restartDevice()'>Restart Feeder</button>"
+    "<div id='rmsg' class='msg'>Restarts the feeder without pressing the button on the board.</div>"
+    "</div>"
+    "</div>"
     "<script>"
     "async function cfg(){"
     " const btn=document.getElementById('btnCfg');"
@@ -2194,6 +2211,17 @@ void handleRoot() {
     "  else{msg.className='msg err';msg.textContent='Reset failed: '+(j.error||'Unknown error');}"
     " }catch(e){msg.className='msg err';msg.textContent='Reset error: '+(e.message||e);}"
     " setTimeout(()=>{document.getElementById('btnReset').disabled=false;},1200);"
+    "}"
+    "async function restartDevice(){"
+    " const msg=document.getElementById('rmsg');const btn=document.getElementById('btnRestart');"
+    " if(!confirm('Restart the feeder now?')) return;"
+    " btn.disabled=true;msg.className='msg';msg.textContent='Restarting...';"
+    " try{"
+    "  const r=await fetch('/restart',{method:'POST',headers:{'X-Feeder-Restart':'1'}});"
+    "  if(!r.ok) throw new Error('HTTP '+r.status);"
+    "  msg.className='msg ok';msg.textContent='Restarting. This page will be available again in about 15 seconds.';"
+    "  setTimeout(()=>location.reload(),15000);"
+    " }catch(e){msg.className='msg err';msg.textContent='Restart error: '+(e.message||e);btn.disabled=false;}"
     "}"
     "</script></body></html>";
 
@@ -2252,6 +2280,7 @@ void setupWebServer() {
   server.on("/status",     HTTP_GET,     handleStatus);
   server.on("/reset-wifi", HTTP_POST,    handleResetWifi);
   server.on("/reset-wifi", HTTP_OPTIONS, handleResetWifi);
+  server.on("/restart",    HTTP_POST,    handleRestart);
   server.on("/feed-now",   HTTP_POST,    handleFeedNow);
   server.on("/feed-now",   HTTP_OPTIONS, handleFeedNow);
   server.on("/command",    HTTP_POST,    handleCommand);
@@ -2272,6 +2301,8 @@ void setupWebServer() {
   server.on("/canonical.html",            HTTP_ANY, handleCaptiveProbe);
   server.on("/success.txt",               HTTP_ANY, handleCaptiveProbe);
   server.onNotFound(handleNotFound);
+  static const char* collectedHeaders[] = {"X-Feeder-Restart"};
+  server.collectHeaders(collectedHeaders, 1);
   server.begin();
   Serial.println("[HTTP] Server started on port 80");
 }
