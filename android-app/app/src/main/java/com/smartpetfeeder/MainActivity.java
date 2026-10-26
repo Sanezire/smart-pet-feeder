@@ -250,6 +250,7 @@ public class MainActivity extends AppCompatActivity implements FirebaseService.D
         firebaseService.setSyncListener(syncListener);
         firebaseService.setPetProfileListener(this::onPetProfileChanged);
         firebaseService.setFeederStatusListener(this::onFeederStatusChanged);
+        firebaseService.setTrayStateListener(this::onDeviceTrayState);
         firebaseService.seedDefaultSchedulesIfEmpty();
         if (btnEditPetProfile != null) {
             btnEditPetProfile.setOnClickListener(v -> showPetProfileDialog(currentPetProfile));
@@ -317,6 +318,7 @@ public class MainActivity extends AppCompatActivity implements FirebaseService.D
             firebaseService.setLiveWeightListener(null);
             firebaseService.setLiveFeedingListener(null);
             firebaseService.setFeederStatusListener(null);
+            firebaseService.setTrayStateListener(null);
             firebaseService.setSyncListener(null);
             firebaseService.shutdown();
         }
@@ -671,6 +673,22 @@ public class MainActivity extends AppCompatActivity implements FirebaseService.D
         }
         setTrayUi(TrayUi.CLOSING);
         scheduleTrayCycleEnd((TRAY_AUTO_CLOSE ? trayOpenMs + trayHoldMs : 0L) + trayCloseMs + traySettleMs);
+    }
+
+    /** The feeder reports its tray state; keeps the button right when the feeder opens the tray by itself. */
+    private void onDeviceTrayState(boolean open) {
+        runOnUiThread(() -> {
+            if (isFinishing() || isDestroyed()) return;
+            if (open && trayUi == TrayUi.IDLE) {
+                cancelTrayTimers();
+                trayActionId = null;
+                setTrayUi(TrayUi.OPEN);
+            } else if (!open && trayUi == TrayUi.OPEN) {
+                cancelTrayTimers();
+                trayActionId = null;
+                setTrayUi(TrayUi.IDLE);
+            }
+        });
     }
 
     private void triggerTrayToggle() {

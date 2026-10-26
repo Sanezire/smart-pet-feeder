@@ -86,6 +86,7 @@
 #define TRAY_HOLD_MS              5000UL
 #define TRAY_CLOSE_MS             5000UL
 #define TRAY_SETTLE_MS            400UL
+#define TRAY_AUTO_OPEN_DELAY_MS   3000UL // wait after target weight is reached before the tray opens
 #define TRAY_COOLDOWN_MS          2000UL
 #define TRAY_OK                   0
 #define TRAY_ERR_BUSY             1
@@ -172,6 +173,9 @@ uint8_t       trayState           = TRAY_IDLE;
 unsigned long trayPhaseStartMs    = 0;
 unsigned long trayLastEndMs       = 0;
 bool          trayHasRun          = false;
+bool          trayAutoOpenPending = false;  // open the tray after a feed reached its target weight
+unsigned long trayAutoOpenAtMs    = 0;
+bool          trayStatusDirty     = false;  // tray open/closed state not yet sent to the cloud
 String        trayRemoteCommandId = "";   // Firebase command to acknowledge when the cycle ends
 String        trayLastCommandId   = "";
 unsigned long trayOpenedMs        = 0;
@@ -279,6 +283,7 @@ void triggerFeed(float portionGrams = 0.0f, bool scheduled = false);
 void completeEatCheck();
 int  startTray();
 int  requestTrayClose();
+void updateTrayAutoOpen();
 void updateTray();
 const char* trayStateName();
 const char* trayErrorText(int code);
@@ -847,6 +852,7 @@ bool sendHeartbeat(long ackVersion) {
     payload += ",\"currentWeight\":null,\"weightUpdatedAt\":null";
   }
   if (ackVersion > 0) payload += ",\"applied_schedule_version\":" + String(ackVersion);
+  payload += String(",\"trayOpen\":") + ((trayState == TRAY_OPENING || trayState == TRAY_HOLDING) ? "true" : "false");
   payload += "}";
   bool ok = firebasePatch(userPath("/device_status.json"), payload);
   if (ok) {
@@ -1235,6 +1241,11 @@ void updateFirebaseRemoteControl() {
   if (finalizeStationSwitchPending) return;
   if (isFeeding) return;
   if (trayState != TRAY_IDLE && trayState != TRAY_HOLDING) return;
+  static unsigned long trayPushTryMs = 0;
+  if (trayStatusDirty && millis() - trayPushTryMs >= 2000UL) {
+    trayPushTryMs = millis();
+    if (sendHeartbeat(0)) trayStatusDirty = false;
+  }
   pushLiveWeightToFirebase(false);
   if (millis() - lastFirebasePollMs < FIREBASE_POLL_MS) return;
   lastFirebasePollMs = millis();
@@ -1380,10 +1391,12 @@ void updateFeeder() {
   if (isFeeding) {
     unsigned long elapsed = millis() - feedingStartMs;
     bool stop = false;
+    bool targetReached = false;
 
     if (feedWeightMode && scaleAvailable && hasValidLiveWeight()) {
       if (fastWeightGrams >= feedStopAt) {
         stop = true;
+        targetReached = true;
         Serial.println("[Feeder] Target reached: " + String(fastWeightGrams, 1) + " g >= stopAt "
                        + String(feedStopAt, 1) + " g after " + String(elapsed) + " ms");
       } else if (elapsed >= DISPENSE_MAX_MS) {
@@ -1411,6 +1424,11 @@ void updateFeeder() {
       feederServo.write(SERVO_HOME_ANGLE);
       isFeeding = false;
       Serial.println("[Feeder] Servo returned home.");
+      if (targetReached) {
+        trayAutoOpenPending = true;
+        trayAutoOpenAtMs    = millis() + TRAY_AUTO_OPEN_DELAY_MS;
+        Serial.println("[Tray] Target weight reached - tray opens in " + String(TRAY_AUTO_OPEN_DELAY_MS) + " ms.");
+      }
       if (feedIsScheduled || feedRecordId.length() > 0) {
         feedFinalizePending = true;
         feedFinalizeAtMs    = millis() + FEED_SETTLE_MS;
@@ -1643,6 +1661,7 @@ void updateTray() {
       trayOpenedMs     = TRAY_OPEN_MS;
       trayState        = TRAY_HOLDING;
       trayPhaseStartMs = now;
+      trayStatusDirty  = true;
       Serial.println("[Tray] Open - holding.");
       return;
     case TRAY_HOLDING:
@@ -1667,6 +1686,7 @@ void updateTray() {
   trayState     = TRAY_IDLE;
   trayLastEndMs = now;
   trayHasRun    = true;
+  trayStatusDirty = true;
   Serial.println("[Tray] Cycle complete - tray closed, servo stopped.");
   if (trayRemoteCommandId.length() > 0) {
     if (trayRemoteCommandId == lastProcessedRemoteCommandId
@@ -1676,6 +1696,17 @@ void updateTray() {
     }
     trayRemoteCommandId = "";
   }
+}
+
+void updateTrayAutoOpen() {
+  if (!trayAutoOpenPending) return;
+  if (isFeeding) { trayAutoOpenPending = false; return; }   // a new feed started first
+  if ((long)(millis() - trayAutoOpenAtMs) < 0) return;
+  int rc = startTray();
+  if (rc == TRAY_ERR_COOLDOWN) return;                      // try again on the next loop
+  trayAutoOpenPending = false;
+  if (rc == TRAY_OK) Serial.println("[Tray] Auto-opened after feeding; stays open until closed.");
+  else               Serial.println(String("[Tray] Auto-open skipped: ") + trayErrorText(rc));
 }
 
 void initServoPinSafe() {
@@ -2299,6 +2330,7 @@ void loop() {
   updateTray();
   updateScale();
   updateFeeder();
+  updateTrayAutoOpen();
   updateScheduledFeeding();
   updateTray();
   updateFirebaseRemoteControl();

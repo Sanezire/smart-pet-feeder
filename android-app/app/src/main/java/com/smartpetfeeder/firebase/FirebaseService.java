@@ -80,6 +80,10 @@ public class FirebaseService {
         void onFeederStatus(boolean online, long lastSeen);
     }
 
+    public interface TrayStateListener {
+        void onTrayState(boolean open);
+    }
+
     public interface PetProfileListener {
         void onPetProfileChanged(PetProfile profile);
     }
@@ -196,6 +200,8 @@ public class FirebaseService {
     private LiveWeightListener liveWeightListener;
     private LiveFeedingListener liveFeedingListener;
     private FeederStatusListener feederStatusListener;
+    private TrayStateListener trayStateListener;
+    private Boolean lastTrayOpen = null;
     private boolean feederOnline          = false;
     private boolean feederStatusDispatched = false;
     private long    feederSeenChangedAt   = 0L;
@@ -298,6 +304,11 @@ public class FirebaseService {
     public void setFeederStatusListener(FeederStatusListener listener) {
         this.feederStatusListener = listener;
         if (listener != null && feederStatusDispatched) listener.onFeederStatus(feederOnline, feederLastSeen);
+    }
+
+    public void setTrayStateListener(TrayStateListener listener) {
+        this.trayStateListener = listener;
+        if (listener != null && lastTrayOpen != null) listener.onTrayState(lastTrayOpen);
     }
 
     public boolean isFeederOnline() { return feederOnline; }
@@ -875,6 +886,13 @@ public class FirebaseService {
                 if (snapshot.hasChild("recommendedPortion")) {
                     Float rp = snapshot.child("recommendedPortion").getValue(Float.class);
                     if (rp != null && rp > 0f) recommendedPortion = rp;
+                }
+                if (snapshot.hasChild("trayOpen")) {
+                    Boolean trayOpen = snapshot.child("trayOpen").getValue(Boolean.class);
+                    if (trayOpen != null && !trayOpen.equals(lastTrayOpen)) {
+                        lastTrayOpen = trayOpen;
+                        if (trayStateListener != null) trayStateListener.onTrayState(trayOpen);
+                    }
                 }
                 boolean weightChanged = readLiveWeight(snapshot);
                 dispatchLiveFeeding(snapshot);
