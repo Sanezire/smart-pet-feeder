@@ -13,6 +13,7 @@
 
 #define PIN_SERVO         D3   // GPIO14 - no boot-strap behaviour
 #define PIN_TRAY          D8
+#define PIN_TRAY2         D5   // second tray servo, mirrors D8 in the opposite direction
 #define PIN_RELAY         D1   // GPIO5 - water valve / pump relay
 #define PIN_FLOW_SENSOR   D2   // GPIO4 - YF-S201 pulse output
 #define PIN_FOOD_SENSOR   A0
@@ -78,6 +79,8 @@
 #define TRAY_NEUTRAL_US           1500   // [CALIBRATE] stop command (microseconds)
 #define TRAY_OPEN_US              1700   // [CALIBRATE] opening direction / speed
 #define TRAY_CLOSE_US             1300
+#define TRAY2_OPEN_US             (2 * TRAY_NEUTRAL_US - TRAY_OPEN_US)   // opposite rotation of tray 1
+#define TRAY2_CLOSE_US            (2 * TRAY_NEUTRAL_US - TRAY_CLOSE_US)
 #define TRAY_OPEN_MS              10000UL // [CALIBRATE] time spent turning in the opening direction
 #define TRAY_AUTO_CLOSE           0
 #define TRAY_HOLD_MS              5000UL
@@ -138,6 +141,7 @@ DNSServer        dnsServer;
 bool             dnsRunning = false;
 Servo            feederServo;
 Servo            trayServo;
+Servo            trayServo2;
 HX711            scale;
 WiFiEventHandler stationDisconnectedHandler;
 WiFiEventHandler stationGotIpHandler;
@@ -1574,22 +1578,28 @@ const char* trayStateName() {
 void initTrayPinSafe() {
   digitalWrite(PIN_TRAY, LOW);
   pinMode(PIN_TRAY, OUTPUT);
+  digitalWrite(PIN_TRAY2, LOW);
+  pinMode(PIN_TRAY2, OUTPUT);
 }
 
 void initTray() {
   trayState = TRAY_IDLE;
-  Serial.println("[Tray] Ready on D8 (closed, signal LOW).");
+  Serial.println("[Tray] Ready on D8 + D5 (closed, signal LOW).");
 }
 
 void releaseTrayPin() {
   trayServo.detach();
+  trayServo2.detach();
   digitalWrite(PIN_TRAY, LOW);
   pinMode(PIN_TRAY, OUTPUT);
+  digitalWrite(PIN_TRAY2, LOW);
+  pinMode(PIN_TRAY2, OUTPUT);
 }
 
 static void beginTrayClose(unsigned long closeMs) {
   trayCloseDurationMs = closeMs;
   trayServo.writeMicroseconds(TRAY_CLOSE_US);
+  trayServo2.writeMicroseconds(TRAY2_CLOSE_US);
   trayState        = TRAY_CLOSING;
   trayPhaseStartMs = millis();
   Serial.println("[Tray] Closing: turning back for " + String(closeMs) + " ms.");
@@ -1600,7 +1610,9 @@ int startTray() {
   if (trayHasRun && millis() - trayLastEndMs < TRAY_COOLDOWN_MS) return TRAY_ERR_COOLDOWN;
   if (isFeeding) return TRAY_ERR_FEEDING;
   trayServo.attach(PIN_TRAY);
+  trayServo2.attach(PIN_TRAY2);
   trayServo.writeMicroseconds(TRAY_OPEN_US);
+  trayServo2.writeMicroseconds(TRAY2_OPEN_US);
   trayState        = TRAY_OPENING;
   trayPhaseStartMs = millis();
   trayOpenedMs     = 0;
@@ -1627,6 +1639,7 @@ void updateTray() {
     case TRAY_OPENING:
       if (elapsed < TRAY_OPEN_MS) return;
       trayServo.writeMicroseconds(TRAY_NEUTRAL_US);
+      trayServo2.writeMicroseconds(TRAY_NEUTRAL_US);
       trayOpenedMs     = TRAY_OPEN_MS;
       trayState        = TRAY_HOLDING;
       trayPhaseStartMs = now;
@@ -1641,6 +1654,7 @@ void updateTray() {
     case TRAY_CLOSING:
       if (elapsed < trayCloseDurationMs) return;
       trayServo.writeMicroseconds(TRAY_NEUTRAL_US);
+      trayServo2.writeMicroseconds(TRAY_NEUTRAL_US);
       trayState        = TRAY_STOPPING;
       trayPhaseStartMs = now;
       Serial.println("[Tray] Returned - stopping.");
