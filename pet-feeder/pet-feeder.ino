@@ -84,7 +84,7 @@
 #define TRAY_OPEN_MS              4000UL  // [CALIBRATE] time spent turning in the opening direction
 #define TRAY_AUTO_CLOSE           0
 #define TRAY_HOLD_MS              5000UL
-#define TRAY_CLOSE_MS             4000UL
+#define TRAY_CLOSE_MS             5000UL
 #define TRAY_SETTLE_MS            400UL
 #define TRAY_COOLDOWN_MS          2000UL
 #define TRAY_OK                   0
