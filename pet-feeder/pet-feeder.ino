@@ -81,10 +81,10 @@
 #define TRAY_CLOSE_US             1300
 #define TRAY2_OPEN_US             (2 * TRAY_NEUTRAL_US - TRAY_OPEN_US)   // opposite rotation of tray 1
 #define TRAY2_CLOSE_US            (2 * TRAY_NEUTRAL_US - TRAY_CLOSE_US)
-#define TRAY_OPEN_MS              4000UL  // [CALIBRATE] time spent turning in the opening direction
+#define TRAY_OPEN_MS              5000UL  // [CALIBRATE] time spent turning in the opening direction
 #define TRAY_AUTO_CLOSE           0
 #define TRAY_HOLD_MS              5000UL
-#define TRAY_CLOSE_MS             5000UL
+#define TRAY_CLOSE_MS             6000UL
 #define TRAY_SETTLE_MS            400UL
 #define TRAY_AUTO_OPEN_DELAY_MS   3000UL // wait after target weight is reached before the tray opens
 #define TRAY_COOLDOWN_MS          2000UL
@@ -1702,6 +1702,7 @@ void updateTrayAutoOpen() {
   if (!trayAutoOpenPending) return;
   if (isFeeding) { trayAutoOpenPending = false; return; }   // a new feed started first
   if ((long)(millis() - trayAutoOpenAtMs) < 0) return;
+  feederServo.write(SERVO_HOME_ANGLE);                      // make sure the food gate is closed before the tray moves
   int rc = startTray();
   if (rc == TRAY_ERR_COOLDOWN) return;                      // try again on the next loop
   trayAutoOpenPending = false;
