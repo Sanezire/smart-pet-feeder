@@ -77,8 +77,8 @@
 #define SERVO_SWEEP_ANGLE         90
 #define SERVO_HOLD_MS             2000UL
 #define TRAY_NEUTRAL_US           1500   // [CALIBRATE] stop command (microseconds)
-#define TRAY_OPEN_US              1700   // [CALIBRATE] opening direction / speed
-#define TRAY_CLOSE_US             1300
+#define TRAY_OPEN_US              1300   // [CALIBRATE] opening direction / speed
+#define TRAY_CLOSE_US             1700
 #define TRAY2_OPEN_US             (2 * TRAY_NEUTRAL_US - TRAY_OPEN_US)   // opposite rotation of tray 1
 #define TRAY2_CLOSE_US            (2 * TRAY_NEUTRAL_US - TRAY_CLOSE_US)
 #define TRAY_OPEN_MS              5000UL  // [CALIBRATE] time spent turning in the opening direction
