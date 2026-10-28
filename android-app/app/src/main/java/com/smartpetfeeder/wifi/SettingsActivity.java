@@ -31,7 +31,8 @@ public class SettingsActivity extends AppCompatActivity {
     private Button      btnRestart;
     private Button      btnSaveTray;
     private EditText    etTrayMinutes;
-    private LinearLayout layoutTray;
+    private TextView    tvTrayInfo;
+    private com.smartpetfeeder.firebase.FirebaseService firebaseService;
     private Button      btnRefresh;
     private ProgressBar progressBar;
     private LinearLayout layoutConnected;
@@ -58,6 +59,12 @@ public class SettingsActivity extends AppCompatActivity {
         setupListeners();
 
         discovery = new DeviceDiscovery(this);
+        try {
+            firebaseService = new com.smartpetfeeder.firebase.FirebaseService(getApplicationContext());
+        } catch (Exception e) {
+            firebaseService = null;
+        }
+        loadTrayInfoFromCloud();
         refreshStatus();
     }
 
@@ -75,6 +82,7 @@ public class SettingsActivity extends AppCompatActivity {
         }
         if (espClient != null) espClient.shutdown();
         if (discovery != null) discovery.shutdown();
+        if (firebaseService != null) firebaseService.shutdown();
     }
 
     @Override
@@ -94,7 +102,7 @@ public class SettingsActivity extends AppCompatActivity {
         btnRestart         = findViewById(R.id.btnSettingsRestart);
         btnSaveTray        = findViewById(R.id.btnSettingsSaveTray);
         etTrayMinutes      = findViewById(R.id.etSettingsTrayMinutes);
-        layoutTray         = findViewById(R.id.layoutSettingsTray);
+        tvTrayInfo         = findViewById(R.id.tvSettingsTrayInfo);
         btnRefresh         = findViewById(R.id.btnSettingsRefresh);
         progressBar        = findViewById(R.id.progressBarSettings);
         layoutConnected    = findViewById(R.id.layoutSettingsConnected);
@@ -249,11 +257,36 @@ public class SettingsActivity extends AppCompatActivity {
         });
     }
 
+    private void loadTrayInfoFromCloud() {
+        if (firebaseService == null) return;
+        firebaseService.readTrayInfo((closeMinutes, autoCloseAtMs, lastClosedAtMs, lastClosedBy) -> {
+            if (isFinishing() || isDestroyed()) return;
+            if (closeMinutes > 0 && !etTrayMinutes.hasFocus()
+                    && etTrayMinutes.getText().toString().trim().isEmpty()) {
+                etTrayMinutes.setText(String.valueOf(closeMinutes));
+            }
+            java.text.DateFormat fmt = new java.text.SimpleDateFormat(
+                    "MMM d, h:mm a", java.util.Locale.getDefault());
+            StringBuilder info = new StringBuilder();
+            if (autoCloseAtMs > System.currentTimeMillis()) {
+                info.append("Tray closes automatically at ")
+                    .append(new java.text.SimpleDateFormat("h:mm a", java.util.Locale.getDefault())
+                            .format(new java.util.Date(autoCloseAtMs)));
+            }
+            if (lastClosedAtMs > 0) {
+                if (info.length() > 0) info.append("\n");
+                info.append("Last closed: ").append(fmt.format(new java.util.Date(lastClosedAtMs)));
+                if ("auto".equals(lastClosedBy)) info.append(" (automatically)");
+                else if ("manual".equals(lastClosedBy)) info.append(" (manually)");
+            }
+            if (info.length() > 0) {
+                tvTrayInfo.setText(info.toString());
+                tvTrayInfo.setVisibility(View.VISIBLE);
+            }
+        });
+    }
+
     private void saveTrayTimer() {
-        if (espClient == null) {
-            Toast.makeText(this, "Device not reachable.", Toast.LENGTH_SHORT).show();
-            return;
-        }
         String raw = etTrayMinutes.getText().toString().trim();
         int minutes;
         try {
@@ -266,27 +299,37 @@ public class SettingsActivity extends AppCompatActivity {
                     Toast.LENGTH_SHORT).show();
             return;
         }
+        if (firebaseService == null && espClient == null) {
+            Toast.makeText(this, "Sign in or connect to the feeder first.",
+                    Toast.LENGTH_SHORT).show();
+            return;
+        }
 
         final int saved = minutes;
-        setLoading(true);
-        espClient.setTrayCloseMinutes(saved, new EspApiClient.Callback() {
-            @Override
-            public void onSuccess(JSONObject response) {
-                setLoading(false);
-                Toast.makeText(SettingsActivity.this,
-                        "Tray will close " + saved + " min after a scheduled feeding.",
-                        Toast.LENGTH_LONG).show();
-            }
+        final String done = "Tray will close " + saved + " min after a scheduled feeding.";
 
-            @Override
-            public void onError(String errorMessage) {
-                setLoading(false);
-                Toast.makeText(SettingsActivity.this,
-                        "Could not save: " + errorMessage
-                                + "\n(Make sure the feeder firmware is up to date.)",
-                        Toast.LENGTH_LONG).show();
-            }
-        });
+        if (espClient != null) {
+            espClient.setTrayCloseMinutes(saved, new EspApiClient.Callback() {
+                @Override public void onSuccess(JSONObject response) { }
+                @Override public void onError(String errorMessage) { }
+            });
+        }
+
+        if (firebaseService != null) {
+            firebaseService.pushTrayCloseMinutes(saved,
+                    new com.smartpetfeeder.firebase.FirebaseService.AckCallback() {
+                @Override public void onAcknowledged() {
+                    Toast.makeText(SettingsActivity.this, done, Toast.LENGTH_LONG).show();
+                }
+                @Override public void onFailed(String error) {
+                    Toast.makeText(SettingsActivity.this,
+                            "Saved offline. It will sync to the feeder when you are online.",
+                            Toast.LENGTH_LONG).show();
+                }
+            });
+        } else {
+            Toast.makeText(this, done, Toast.LENGTH_LONG).show();
+        }
     }
 
     private void confirmRestart() {
@@ -338,7 +381,6 @@ public class SettingsActivity extends AppCompatActivity {
         layoutDisconnected.setVisibility(View.GONE);
         btnResetWifi.setVisibility(View.VISIBLE);
         btnRestart.setVisibility(View.VISIBLE);
-        layoutTray.setVisibility(View.VISIBLE);
         tvApInfo.setVisibility(View.GONE);
     }
 
@@ -351,7 +393,6 @@ public class SettingsActivity extends AppCompatActivity {
         layoutDisconnected.setVisibility(View.VISIBLE);
         btnResetWifi.setVisibility(View.GONE);
         btnRestart.setVisibility(View.GONE);
-        layoutTray.setVisibility(View.GONE);
         tvApInfo.setVisibility(View.VISIBLE);
     }
 

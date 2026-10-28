@@ -146,6 +146,7 @@ public class FirebaseService {
     private static final String ACT_REMOTE_CONFIG   = "remote_config";
     private static final String ACT_REMOTE_SCHEDULE = "remote_schedule";
     private static final String ACT_REMOTE_COMMAND  = "remote_command";
+    private static final String ACT_TRAY_CONFIG     = "tray_config";
     private static final String ACT_MANUAL_LOG      = "manual_feed_log";
 
     private static final String PREFS_SYNC_BASE     = "sync_queue_prefs";
@@ -569,6 +570,42 @@ public class FirebaseService {
         } catch (Exception e) {
             Log.e(TAG, "pushRemoteFeedConfig enqueue failed", e);
         }
+    }
+
+    public interface TrayInfoCallback {
+        void onInfo(int closeMinutes, long autoCloseAtMs, long lastClosedAtMs, String lastClosedBy);
+    }
+
+    public void pushTrayCloseMinutes(int minutes, AckCallback cb) {
+        try {
+            JSONObject p = new JSONObject();
+            p.put("trayCloseMinutes", minutes);
+            enqueue(newAction(ACT_TRAY_CONFIG, p, 0L), cb, "tray_config");
+        } catch (Exception e) {
+            Log.e(TAG, "pushTrayCloseMinutes enqueue failed", e);
+            if (cb != null) cb.onFailed(String.valueOf(e.getMessage()));
+        }
+    }
+
+    public void readTrayInfo(TrayInfoCallback cb) {
+        deviceStatusRef.addListenerForSingleValueEvent(new ValueEventListener() {
+            @Override public void onDataChange(DataSnapshot snap) {
+                Long minutes = snap.child("trayCloseMinutes").getValue(Long.class);
+                if (minutes == null) {
+                    minutes = snap.child("remote_config").child("trayCloseMinutes").getValue(Long.class);
+                }
+                Long autoAt = snap.child("trayAutoCloseAt").getValue(Long.class);
+                Long closedAt = snap.child("trayLastClosedAt").getValue(Long.class);
+                String closedBy = snap.child("trayLastClosedBy").getValue(String.class);
+                cb.onInfo(minutes == null ? -1 : minutes.intValue(),
+                        autoAt == null ? 0L : autoAt,
+                        closedAt == null ? 0L : closedAt,
+                        closedBy);
+            }
+            @Override public void onCancelled(DatabaseError error) {
+                Log.w(TAG, "readTrayInfo cancelled", error.toException());
+            }
+        });
     }
 
     public void pushRemoteSchedule(List<FeedingSchedule> schedules) {
@@ -1186,6 +1223,7 @@ public class FirebaseService {
             case ACT_SCHEDULE_DELETE: return "sched:" + a.payload.optString("scheduleId");
             case ACT_REMOTE_CONFIG:   return "remote_config";
             case ACT_REMOTE_SCHEDULE: return "remote_schedule";
+            case ACT_TRAY_CONFIG:     return "tray_config";
             default: return null;
         }
     }
@@ -1269,6 +1307,14 @@ public class FirebaseService {
                     Map<String, Object> up = new HashMap<>();
                     up.put(PATH_DEVICE_STATUS + "/remote_config/portionGrams",
                             a.payload.optDouble("portionGrams", 0));
+                    up.put(PATH_DEVICE_STATUS + "/remote_config/updatedAt", ServerValue.TIMESTAMP);
+                    rootUpdate(up, done);
+                    break;
+                }
+                case ACT_TRAY_CONFIG: {
+                    Map<String, Object> up = new HashMap<>();
+                    up.put(PATH_DEVICE_STATUS + "/remote_config/trayCloseMinutes",
+                            a.payload.optInt("trayCloseMinutes", 30));
                     up.put(PATH_DEVICE_STATUS + "/remote_config/updatedAt", ServerValue.TIMESTAMP);
                     rootUpdate(up, done);
                     break;

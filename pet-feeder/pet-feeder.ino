@@ -183,6 +183,12 @@ bool          trayAutoCloseWanted = false;  // the pending auto-open follows a s
 bool          trayAutoCloseArmed  = false;  // tray is open and will close by itself
 unsigned long trayAutoCloseAtMs   = 0;
 uint16_t      trayCloseAfterMin   = TRAY_CLOSE_DEFAULT_MIN;
+bool          trayClosingAuto     = false;  // this cycle was closed by the auto-close timer
+unsigned long trayCycleStartMs    = 0;
+unsigned long trayOpenSecs        = 0;      // how long the tray was open in the last cycle
+bool          trayEventPending    = false;  // closed-tray event not yet logged to the cloud
+bool          trayClosedReportPending = false;  // last-closed time not yet sent in a heartbeat
+time_t        trayClosedEpoch     = 0;      // wall-clock close time, 0 if the clock was not synced
 bool          trayStatusDirty     = false;  // tray open/closed state not yet sent to the cloud
 String        trayRemoteCommandId = "";   // Firebase command to acknowledge when the cycle ends
 String        trayLastCommandId   = "";
@@ -866,6 +872,11 @@ String versionToString(int64_t v) {
   return String(&buf[i]);
 }
 
+String trayClosedAtJson() {
+  if (trayClosedEpoch > 0) return String((unsigned long)trayClosedEpoch) + "000";
+  return String("{\".sv\":\"timestamp\"}");
+}
+
 bool sendHeartbeat(int64_t ackVersion) {
   String payload = "{\"connected\":true,\"lastSeen\":{\".sv\":\"timestamp\"}";
   float liveWeight = currentWeightGrams > 0.0f ? currentWeightGrams : 0.0f;
@@ -882,10 +893,24 @@ bool sendHeartbeat(int64_t ackVersion) {
   }
   if (ackVersion > 0) payload += ",\"applied_schedule_version\":" + versionToString(ackVersion);
   payload += String(",\"trayOpen\":") + ((trayState == TRAY_OPENING || trayState == TRAY_HOLDING) ? "true" : "false");
+  payload += ",\"trayCloseMinutes\":" + String(trayCloseAfterMin);
+  if (trayAutoCloseArmed && trayState == TRAY_HOLDING && isClockSynced()) {
+    long remainSec = (long)(trayAutoCloseAtMs - millis()) / 1000L;
+    if (remainSec < 0) remainSec = 0;
+    payload += ",\"trayAutoCloseAt\":" + String((unsigned long)(time(nullptr) + remainSec)) + "000";
+  } else {
+    payload += ",\"trayAutoCloseAt\":null";
+  }
+  bool reportClose = trayClosedReportPending && trayState == TRAY_IDLE;
+  if (reportClose) {
+    payload += ",\"trayLastClosedAt\":" + trayClosedAtJson();
+    payload += String(",\"trayLastClosedBy\":\"") + (trayClosingAuto ? "auto" : "manual") + "\"";
+  }
   payload += "}";
   bool ok = firebasePatch(userPath("/device_status.json"), payload);
   if (ok) {
     lastHeartbeatMs = millis();
+    if (reportClose) trayClosedReportPending = false;
     if (scaleAvailable) {
       lastLiveWeightPushMs = lastHeartbeatMs;
       lastPushedWeight = liveWeight;
@@ -908,6 +933,15 @@ bool applyRemoteConfig(JsonObject config, int64_t version, int64_t appliedInDb) 
     if (pg >= 0.0f && pg != defaultPortionGrams) {
       defaultPortionGrams = pg;
       saveDefaultPortion();
+    }
+  }
+
+  if (config.containsKey("trayCloseMinutes")) {
+    int tm = config["trayCloseMinutes"].as<int>();
+    if (tm >= TRAY_CLOSE_MIN_MIN && tm <= TRAY_CLOSE_MAX_MIN && tm != (int)trayCloseAfterMin) {
+      trayCloseAfterMin = (uint16_t)tm;
+      saveTrayCloseMinutes();
+      trayStatusDirty = true;
     }
   }
 
@@ -1274,6 +1308,19 @@ void updateFirebaseRemoteControl() {
   if (trayStatusDirty && millis() - trayPushTryMs >= 2000UL) {
     trayPushTryMs = millis();
     if (sendHeartbeat(0)) trayStatusDirty = false;
+  }
+  static unsigned long trayEventTryMs = 0;
+  if (trayEventPending && trayState == TRAY_IDLE && millis() - trayEventTryMs >= 2000UL) {
+    trayEventTryMs = millis();
+    String id;
+    if (trayClosedEpoch > 0) id = String((unsigned long)trayClosedEpoch);
+    else                     id = "b" + String(millis());
+    String ev = "{\"closedAt\":" + trayClosedAtJson();
+    ev += String(",\"closedBy\":\"") + (trayClosingAuto ? "auto" : "manual") + "\"";
+    ev += ",\"openSeconds\":" + String(trayOpenSecs);
+    if (trayClosingAuto) ev += ",\"closeAfterMinutes\":" + String(trayCloseAfterMin);
+    ev += "}";
+    if (firebasePatch(userPath("/tray_events/" + id + ".json"), ev)) trayEventPending = false;
   }
   pushLiveWeightToFirebase(false);
   if (millis() - lastFirebasePollMs < FIREBASE_POLL_MS) return;
@@ -1647,6 +1694,7 @@ void releaseTrayPin() {
 static void beginTrayClose(unsigned long closeMs) {
   trayCloseDurationMs = closeMs;
   trayAutoCloseArmed  = false;
+  trayOpenSecs        = (millis() - trayCycleStartMs) / 1000UL;
   trayServo.writeMicroseconds(TRAY_CLOSE_US);
   trayServo2.writeMicroseconds(TRAY2_CLOSE_US);
   trayState        = TRAY_CLOSING;
@@ -1664,6 +1712,8 @@ int startTray() {
   trayServo2.writeMicroseconds(TRAY2_OPEN_US);
   trayState        = TRAY_OPENING;
   trayPhaseStartMs = millis();
+  trayCycleStartMs = trayPhaseStartMs;
+  trayClosingAuto  = false;
   trayOpenedMs     = 0;
   Serial.println("[Tray] Opening for " + String(TRAY_OPEN_MS) + " ms, hold " + String(TRAY_HOLD_MS)
                  + " ms, return " + String(TRAY_CLOSE_MS) + " ms.");
@@ -1702,6 +1752,7 @@ void updateTray() {
     case TRAY_HOLDING:
       if (trayAutoCloseArmed && !isFeeding && (long)(now - trayAutoCloseAtMs) >= 0) {
         Serial.println("[Tray] Auto-close time reached - closing tray.");
+        trayClosingAuto = true;
         requestTrayClose();
         return;
       }
@@ -1727,6 +1778,9 @@ void updateTray() {
   trayLastEndMs = now;
   trayHasRun    = true;
   trayStatusDirty = true;
+  trayClosedEpoch = isClockSynced() ? time(nullptr) : 0;
+  trayEventPending        = true;
+  trayClosedReportPending = true;
   Serial.println("[Tray] Cycle complete - tray closed, servo stopped.");
   if (trayRemoteCommandId.length() > 0) {
     if (trayRemoteCommandId == lastProcessedRemoteCommandId
@@ -2072,6 +2126,7 @@ void handleTrayConfig() {
     }
     trayCloseAfterMin = (uint16_t)minutes;
     saveTrayCloseMinutes();
+    trayStatusDirty = true;
     Serial.println("[Tray] Auto-close time set to " + String(trayCloseAfterMin) + " min.");
   }
   server.send(200, "application/json",
