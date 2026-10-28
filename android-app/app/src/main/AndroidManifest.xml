@@ -76,6 +76,10 @@
             android:name="com.google.firebase.messaging.default_notification_color"
             android:resource="@color/colorPrimary" /> <!-- WiFi Configuration Screen -->
         <activity
+            android:name=".wifi.DirectControlActivity"
+            android:exported="false"
+            android:theme="@style/Theme.SmartPetFeeder" />
+        <activity
             android:name=".wifi.WiFiConfigActivity"
             android:exported="false"
             android:theme="@style/Theme.SmartPetFeeder"

@@ -100,6 +100,8 @@ public class SettingsActivity extends AppCompatActivity {
         btnChangeWifi      = findViewById(R.id.btnSettingsChangeWifi);
         btnResetWifi       = findViewById(R.id.btnSettingsResetWifi);
         btnRestart         = findViewById(R.id.btnSettingsRestart);
+        findViewById(R.id.btnSettingsDirect).setOnClickListener(v ->
+                startActivity(new android.content.Intent(this, DirectControlActivity.class)));
         btnSaveTray        = findViewById(R.id.btnSettingsSaveTray);
         etTrayMinutes      = findViewById(R.id.etSettingsTrayMinutes);
         tvTrayInfo         = findViewById(R.id.tvSettingsTrayInfo);

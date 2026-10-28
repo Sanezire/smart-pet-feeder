@@ -71,6 +71,9 @@
 #define EEPROM_PORTION_ADDR     400
 #define EEPROM_DEF_PORTION_ADDR 440
 #define EEPROM_TRAY_CLOSE_ADDR  444   // uint16 minutes the tray stays open after a scheduled feed
+#define EEPROM_AP_KEEP_MAGIC_ADDR 448 // direct access flag: keep the feeder's own WiFi up after joining a router
+#define EEPROM_AP_KEEP_ADDR       449
+#define EEPROM_AP_KEEP_MAGIC      0xA9
 #define TRAY_CLOSE_DEFAULT_MIN  30
 #define TRAY_CLOSE_MIN_MIN      1
 #define TRAY_CLOSE_MAX_MIN      1440
@@ -189,6 +192,7 @@ unsigned long trayOpenSecs        = 0;      // how long the tray was open in the
 bool          trayEventPending    = false;  // closed-tray event not yet logged to the cloud
 bool          trayClosedReportPending = false;  // last-closed time not yet sent in a heartbeat
 time_t        trayClosedEpoch     = 0;      // wall-clock close time, 0 if the clock was not synced
+bool          apAlwaysOn          = false;  // keep PetFeeder_Setup up even while connected to a router
 bool          trayStatusDirty     = false;  // tray open/closed state not yet sent to the cloud
 String        trayRemoteCommandId = "";   // Firebase command to acknowledge when the cycle ends
 String        trayLastCommandId   = "";
@@ -439,6 +443,17 @@ void saveTrayCloseMinutes() {
   EEPROM.commit();
 }
 
+void saveApAlwaysOn() {
+  EEPROM.write(EEPROM_AP_KEEP_MAGIC_ADDR, EEPROM_AP_KEEP_MAGIC);
+  EEPROM.write(EEPROM_AP_KEEP_ADDR, apAlwaysOn ? 1 : 0);
+  EEPROM.commit();
+}
+
+void loadApAlwaysOn() {
+  apAlwaysOn = (EEPROM.read(EEPROM_AP_KEEP_MAGIC_ADDR) == EEPROM_AP_KEEP_MAGIC)
+               && EEPROM.read(EEPROM_AP_KEEP_ADDR) == 1;
+}
+
 void loadAccountLink() {
   if (EEPROM.read(EEPROM_UID_MAGIC_ADDR) == EEPROM_UID_MAGIC) {
     String u = eepromReadString(EEPROM_UID_ADDR, EEPROM_UID_LEN);
@@ -502,8 +517,12 @@ void configureSetupAP() {
   WiFi.setSleepMode(WIFI_NONE_SLEEP);
 }
 
+bool captivePortalActive() {
+  return isSetupApUp() && currentMode != MODE_STATION;
+}
+
 void updateCaptiveDns() {
-  if (isSetupApUp()) {
+  if (captivePortalActive()) {
     if (!dnsRunning) {
       dnsServer.setErrorReplyCode(DNSReplyCode::NoError);
       dnsRunning = dnsServer.start(53, "*", WiFi.softAPIP());
@@ -533,7 +552,13 @@ void stopSetupAP() {
 }
 
 void markStationConnected() {
-  stopSetupAP();
+  if (apAlwaysOn) {
+    if (dnsRunning) { dnsServer.stop(); dnsRunning = false; }
+    WiFi.mode(WIFI_AP_STA);
+    configureSetupAP();
+  } else {
+    stopSetupAP();
+  }
   currentMode = MODE_STATION;
   stationConnectInProgress = false;
   provisioningError = "";
@@ -639,7 +664,6 @@ uint8_t dayMaskFromTmWday(int tmWday) {
 }
 
 void updateScheduledFeeding() {
-  if (currentMode != MODE_STATION || WiFi.status() != WL_CONNECTED) return;
   if (millis() - lastScheduleCheckMs < SCHEDULE_CHECK_MS) return;
   lastScheduleCheckMs = millis();
 
@@ -1959,6 +1983,7 @@ String buildStatusJson() {
   doc["account_linked"] = (deviceUid.length() > 0);
   doc["account_hash"]   = deviceUid.length() ? hashString(deviceUid) : 0;
   doc["time_synced"] = isClockSynced();
+  doc["ap_always_on"] = apAlwaysOn;
   doc["local_hour"] = currentLocalHour;
   doc["local_minute"] = currentLocalMinute;
   doc["local_wday"] = currentLocalWday;
@@ -2393,8 +2418,56 @@ void sendCaptiveRedirect() {
   server.send(302, "text/plain", "");
 }
 
+void handleDirectMode() {
+  addCORSHeaders();
+  if (server.method() == HTTP_OPTIONS) { server.send(204); return; }
+  if (server.method() == HTTP_POST) {
+    if (!server.hasArg("plain")) {
+      server.send(400, "application/json", "{\"error\":\"No body received\"}");
+      return;
+    }
+    StaticJsonDocument<128> in;
+    if (deserializeJson(in, server.arg("plain")) || !in.containsKey("enabled")) {
+      server.send(400, "application/json", "{\"error\":\"Invalid JSON\"}");
+      return;
+    }
+    apAlwaysOn = in["enabled"].as<bool>();
+    saveApAlwaysOn();
+    if (apAlwaysOn && WiFi.status() == WL_CONNECTED) {
+      WiFi.mode(WIFI_AP_STA);
+      configureSetupAP();
+    }
+    Serial.println(String("[WiFi] Direct access ") + (apAlwaysOn ? "enabled" : "disabled") + ".");
+  }
+  server.send(200, "application/json",
+    String("{\"status\":\"ok\",\"enabled\":") + (apAlwaysOn ? "true" : "false") + "}");
+}
+
+void handleTime() {
+  addCORSHeaders();
+  if (server.method() == HTTP_OPTIONS) { server.send(204); return; }
+  if (!server.hasArg("plain")) {
+    server.send(400, "application/json", "{\"error\":\"No body received\"}");
+    return;
+  }
+  StaticJsonDocument<128> in;
+  if (deserializeJson(in, server.arg("plain"))) {
+    server.send(400, "application/json", "{\"error\":\"Invalid JSON\"}");
+    return;
+  }
+  long nowEpochSeconds = in["nowEpochSeconds"] | 0;
+  if (nowEpochSeconds <= 1609459200L) {
+    server.send(400, "application/json", "{\"error\":\"Invalid time\"}");
+    return;
+  }
+  timeval tv = { nowEpochSeconds, 0 };
+  settimeofday(&tv, nullptr);
+  Serial.println("[Time] Clock set from app.");
+  server.send(200, "application/json", "{\"status\":\"ok\",\"time_synced\":true}");
+}
+
 void handleNotFound() {
-  if (isSetupApUp()) {
+  if (captivePortalActive()) {
     String host = server.hostHeader();
     if (host.length() > 0 && host != WiFi.softAPIP().toString()) {
       sendCaptiveRedirect();
@@ -2405,7 +2478,7 @@ void handleNotFound() {
 }
 
 void handleCaptiveProbe() {
-  if (isSetupApUp()) sendCaptiveRedirect();
+  if (captivePortalActive()) sendCaptiveRedirect();
   else handleNotFound();
 }
 
@@ -2430,6 +2503,11 @@ void setupWebServer() {
   server.on("/schedules",  HTTP_POST,    handleSchedules);
   server.on("/schedules",  HTTP_GET,     handleSchedules);
   server.on("/schedules",  HTTP_OPTIONS, handleSchedules);
+  server.on("/direct-mode", HTTP_GET,     handleDirectMode);
+  server.on("/direct-mode", HTTP_POST,    handleDirectMode);
+  server.on("/direct-mode", HTTP_OPTIONS, handleDirectMode);
+  server.on("/time",       HTTP_POST,    handleTime);
+  server.on("/time",       HTTP_OPTIONS, handleTime);
   server.on("/generate_204",              HTTP_ANY, handleCaptiveProbe);
   server.on("/gen_204",                   HTTP_ANY, handleCaptiveProbe);
   server.on("/hotspot-detect.html",       HTTP_ANY, handleCaptiveProbe);
@@ -2465,6 +2543,7 @@ void setup() {
   EEPROM.begin(EEPROM_SIZE);
   loadSchedulesFromEEPROM();
   loadAccountLink();
+  loadApAlwaysOn();
 
   WiFi.persistent(false);
   WiFi.setAutoConnect(false);
