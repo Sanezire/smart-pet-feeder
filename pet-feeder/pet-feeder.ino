@@ -2232,6 +2232,15 @@ void handleCommand() {
     return;
   }
 
+  if (command == "close_gate") {
+    feederServo.write(SERVO_HOME_ANGLE);
+    isFeeding = false;
+    feedGateClosePending = false;
+    server.send(200, "application/json",
+      "{\"status\":\"ok\",\"message\":\"Food gate closed\"}");
+    return;
+  }
+
   if (command == "open_tray" || command == "close_tray") {
     bool opening = (command == "open_tray");
     String commandId = doc["commandId"] | "";
@@ -2349,6 +2358,10 @@ void handleRoot() {
     "<div id='msg' class='msg'>Ready to configure.</div>"
     "<div class='hint'>After success, reconnect your phone to your home WiFi and open the app.</div>"
     "</div>"
+    "<div class='card'><p class='label'>Food Gate</p>"
+    "<button id='btnGate' onclick='closeGate()'>Close food gate</button>"
+    "<div id='gmsg' class='msg'>Closes the food gate immediately.</div>"
+    "</div>"
     "<div class='card'><p class='label'>Device</p>"
     "<button id='btnRestart' onclick='restartDevice()'>Restart Feeder</button>"
     "<div id='rmsg' class='msg'>Restarts the feeder without pressing the button on the board.</div>"
@@ -2386,6 +2399,17 @@ void handleRoot() {
     "  else{msg.className='msg err';msg.textContent='Reset failed: '+(j.error||'Unknown error');}"
     " }catch(e){msg.className='msg err';msg.textContent='Reset error: '+(e.message||e);}"
     " setTimeout(()=>{document.getElementById('btnReset').disabled=false;},1200);"
+    "}"
+    "async function closeGate(){"
+    " const msg=document.getElementById('gmsg');const btn=document.getElementById('btnGate');"
+    " btn.disabled=true;msg.className='msg';msg.textContent='Closing food gate...';"
+    " try{"
+    "  const r=await fetch('/command',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({command:'close_gate'})});"
+    "  const j=await r.json();"
+    "  if(r.ok){msg.className='msg ok';msg.textContent='Food gate closed.';}"
+    "  else{msg.className='msg err';msg.textContent='Failed: '+(j.error||'Unknown error');}"
+    " }catch(e){msg.className='msg err';msg.textContent='Error: '+(e.message||e);}"
+    " btn.disabled=false;"
     "}"
     "async function restartDevice(){"
     " const msg=document.getElementById('rmsg');const btn=document.getElementById('btnRestart');"

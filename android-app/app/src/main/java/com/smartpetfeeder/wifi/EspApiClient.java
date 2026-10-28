@@ -236,6 +236,21 @@ public class EspApiClient {
         });
     }
 
+    public void sendGateCommand(Callback callback) {
+        executor.execute(() -> {
+            try {
+                JSONObject body = new JSONObject();
+                body.put("command", "close_gate");
+                JSONObject response = post("/command", body.toString(),
+                        TIMEOUT_CONNECT, TIMEOUT_READ);
+                mainHandler.post(() -> callback.onSuccess(response));
+            } catch (Exception e) {
+                Log.e(TAG, "sendGateCommand error", e);
+                mainHandler.post(() -> callback.onError(friendlyError(e.getMessage())));
+            }
+        });
+    }
+
     public static long uidHash(String uid) {
         long h = 2166136261L;
         for (byte b : uid.getBytes(StandardCharsets.UTF_8)) {
