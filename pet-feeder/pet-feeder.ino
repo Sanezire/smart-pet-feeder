@@ -201,7 +201,7 @@ float         lastPushedWeight    = -1000.0f;
 unsigned long lastLiveWeightPushMs = 0;
 unsigned long lastScaleRetryMs    = 0;
 bool          weightSkipLogged    = false;
-long          lastAckedVersion    = 0;
+int64_t       lastAckedVersion    = 0;   // app versions are millisecond timestamps: too big for a 32-bit long
 
 float         feedTargetGrams     = 0.0;
 float         feedStartWeight     = 0.0;
@@ -837,7 +837,19 @@ bool pushLiveWeightToFirebase(bool force) {
   return ok;
 }
 
-bool sendHeartbeat(long ackVersion) {
+String versionToString(int64_t v) {
+  if (v == 0) return "0";
+  bool neg = v < 0;
+  uint64_t u = neg ? (uint64_t)(-(v + 1)) + 1ULL : (uint64_t)v;
+  char buf[24];
+  int i = sizeof(buf) - 1;
+  buf[i] = '\0';
+  while (u > 0) { buf[--i] = '0' + (char)(u % 10ULL); u /= 10ULL; }
+  if (neg) buf[--i] = '-';
+  return String(&buf[i]);
+}
+
+bool sendHeartbeat(int64_t ackVersion) {
   String payload = "{\"connected\":true,\"lastSeen\":{\".sv\":\"timestamp\"}";
   float liveWeight = currentWeightGrams > 0.0f ? currentWeightGrams : 0.0f;
   payload += ",\"currentWeightAvailable\":" + String(scaleAvailable ? "true" : "false");
@@ -851,7 +863,7 @@ bool sendHeartbeat(long ackVersion) {
   } else {
     payload += ",\"currentWeight\":null,\"weightUpdatedAt\":null";
   }
-  if (ackVersion > 0) payload += ",\"applied_schedule_version\":" + String(ackVersion);
+  if (ackVersion > 0) payload += ",\"applied_schedule_version\":" + versionToString(ackVersion);
   payload += String(",\"trayOpen\":") + ((trayState == TRAY_OPENING || trayState == TRAY_HOLDING) ? "true" : "false");
   payload += "}";
   bool ok = firebasePatch(userPath("/device_status.json"), payload);
@@ -867,7 +879,7 @@ bool sendHeartbeat(long ackVersion) {
   return ok;
 }
 
-bool applyRemoteConfig(JsonObject config, long version, long appliedInDb) {
+bool applyRemoteConfig(JsonObject config, int64_t version, int64_t appliedInDb) {
   if (config.isNull()) return false;
   String serialized;
   serializeJson(config, serialized);
@@ -992,14 +1004,14 @@ void pollDeviceStatus() {
     return;
   }
 
-  long version     = doc["schedule_version"] | 0L;
-  long appliedInDb = doc["applied_schedule_version"] | 0L;
+  int64_t version     = doc["schedule_version"] | (int64_t)0;
+  int64_t appliedInDb = doc["applied_schedule_version"] | (int64_t)0;
 
   applyRemoteConfig(doc["remote_config"].as<JsonObject>(), version, appliedInDb);
   handleRemoteCommand(doc["remote_command"].as<JsonObject>());
 
   if (version > 0 && (version != appliedInDb || version != lastAckedVersion)) {
-    if (sendHeartbeat(version)) Serial.println("[Firebase] Acked schedule version " + String(version));
+    if (sendHeartbeat(version)) Serial.println("[Firebase] Acked schedule version " + versionToString(version));
     return;
   }
   if (millis() - lastHeartbeatMs >= FIREBASE_HEARTBEAT_MS || liveWeightMoved()) sendHeartbeat(0);
