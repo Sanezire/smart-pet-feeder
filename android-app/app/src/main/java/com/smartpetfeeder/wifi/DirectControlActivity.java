@@ -118,6 +118,7 @@ public class DirectControlActivity extends BaseActivity {
         findViewById(R.id.btnDirectWater).setOnClickListener(v -> dispenseWater());
         findViewById(R.id.btnDirectTrayOpen).setOnClickListener(v -> trayCommand(true));
         findViewById(R.id.btnDirectTrayClose).setOnClickListener(v -> trayCommand(false));
+        findViewById(R.id.btnDirectGateClose).setOnClickListener(v -> closeGate());
         findViewById(R.id.btnDirectAddSchedule).setOnClickListener(v -> addSchedule());
 
         switchKeepAp.setOnCheckedChangeListener((btn, checked) -> {
@@ -305,6 +306,11 @@ public class DirectControlActivity extends BaseActivity {
     private void trayCommand(boolean open) {
         if (!requireConnected()) return;
         api.sendTrayCommand(open, null, simple(open ? "Tray opening." : "Tray closing."));
+    }
+
+    private void closeGate() {
+        if (!requireConnected()) return;
+        api.sendGateCommand(simple("Food gate closed."));
     }
 
     private EspApiClient.Callback simple(String okMessage) {

@@ -205,6 +205,15 @@
                         android:text="Close tray"
                         android:textSize="14sp" />
                 </LinearLayout>
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnDirectGateClose"
+                    style="@style/Widget.SmartPetFeeder.Button"
+                    android:layout_width="match_parent"
+                    android:layout_height="48dp"
+                    android:layout_marginTop="12dp"
+                    android:text="Close food gate"
+                    android:textSize="14sp" />
             </LinearLayout>
         </androidx.cardview.widget.CardView>
 
