@@ -27,6 +27,7 @@ import androidx.cardview.widget.CardView;
 import androidx.core.content.ContextCompat;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
+import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
@@ -83,6 +84,7 @@ public class MainActivity extends AppCompatActivity implements FirebaseService.D
     private LinearLayout anomalyContainer, noAnomaliesState, emptyState;
     private View       sectionAnomalyAlerts, sectionFeedingHistory;
     private View       loadingState, errorState, contentContainer, notificationsContainer, scheduleContainer, settingsContainer;
+    private SwipeRefreshLayout swipeRefresh;
     private View       noDataNoticeCard;
     private TextView   tvErrorMessage;
     private MaterialButton btnRetry, btnManualFeed, btnOpenTray, tabHome, tabNotifications, tabSchedule, tabSettings;
@@ -229,6 +231,7 @@ public class MainActivity extends AppCompatActivity implements FirebaseService.D
         PetFeederMessagingService.createNotificationChannels(this);
 
         initializeViews();
+        setupPullToRefresh();
         setupRecyclerView();
         setupCharts();
         setupFilterToggle();
@@ -1146,6 +1149,27 @@ public class MainActivity extends AppCompatActivity implements FirebaseService.D
             if (notificationAdapter.isSelectionMode()) notificationAdapter.setSelectionMode(false);
             applyNotificationFilter();
         });
+    }
+
+    private void setupPullToRefresh() {
+        swipeRefresh = findViewById(R.id.swipeRefresh);
+        if (swipeRefresh == null) return;
+        swipeRefresh.setColorSchemeResources(R.color.colorAccent);
+        swipeRefresh.setProgressBackgroundColorSchemeResource(R.color.colorSurface);
+        float d = getResources().getDisplayMetrics().density;
+        swipeRefresh.setProgressViewOffset(false, (int) (56 * d), (int) (120 * d));
+        // Only start a refresh when the visible tab is scrolled to the very top.
+        swipeRefresh.setOnChildScrollUpCallback((parent, child) -> {
+            View[] tabs = { contentContainer, notificationsContainer, scheduleContainer, settingsContainer };
+            for (View tab : tabs) {
+                if (tab != null && tab.getVisibility() == View.VISIBLE) {
+                    return tab.canScrollVertically(-1);
+                }
+            }
+            return false;
+        });
+        // Restart the screen so everything loads again, as if the app was just opened.
+        swipeRefresh.setOnRefreshListener(() -> swipeRefresh.postDelayed(this::recreate, 300));
     }
 
     private void setupBottomNavigation() {
