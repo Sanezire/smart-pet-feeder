@@ -155,6 +155,20 @@ public class EspApiClient {
         });
     }
 
+    public void setTrayCloseMinutes(int minutes, Callback callback) {
+        executor.execute(() -> {
+            try {
+                JSONObject response = post("/tray-config",
+                        "{\"closeAfterMinutes\":" + minutes + "}",
+                        TIMEOUT_CONNECT, TIMEOUT_READ);
+                mainHandler.post(() -> callback.onSuccess(response));
+            } catch (Exception e) {
+                Log.e(TAG, "setTrayCloseMinutes error", e);
+                mainHandler.post(() -> callback.onError(e.getMessage()));
+            }
+        });
+    }
+
     public void feedNow(Callback callback) {
         executor.execute(() -> {
             try {

@@ -6,6 +6,7 @@ import android.os.Handler;
 import android.os.Looper;
 import android.view.View;
 import android.widget.Button;
+import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.ProgressBar;
 import android.widget.TextView;
@@ -28,6 +29,9 @@ public class SettingsActivity extends AppCompatActivity {
     private Button      btnChangeWifi;
     private Button      btnResetWifi;
     private Button      btnRestart;
+    private Button      btnSaveTray;
+    private EditText    etTrayMinutes;
+    private LinearLayout layoutTray;
     private Button      btnRefresh;
     private ProgressBar progressBar;
     private LinearLayout layoutConnected;
@@ -88,6 +92,9 @@ public class SettingsActivity extends AppCompatActivity {
         btnChangeWifi      = findViewById(R.id.btnSettingsChangeWifi);
         btnResetWifi       = findViewById(R.id.btnSettingsResetWifi);
         btnRestart         = findViewById(R.id.btnSettingsRestart);
+        btnSaveTray        = findViewById(R.id.btnSettingsSaveTray);
+        etTrayMinutes      = findViewById(R.id.etSettingsTrayMinutes);
+        layoutTray         = findViewById(R.id.layoutSettingsTray);
         btnRefresh         = findViewById(R.id.btnSettingsRefresh);
         progressBar        = findViewById(R.id.progressBarSettings);
         layoutConnected    = findViewById(R.id.layoutSettingsConnected);
@@ -104,6 +111,7 @@ public class SettingsActivity extends AppCompatActivity {
 
         btnResetWifi.setOnClickListener(v -> confirmReset());
         btnRestart.setOnClickListener(v -> confirmRestart());
+        btnSaveTray.setOnClickListener(v -> saveTrayTimer());
     }
 
     private void refreshStatus() {
@@ -162,6 +170,10 @@ public class SettingsActivity extends AppCompatActivity {
                 setLoading(false);
 
                 boolean connected = response.optBoolean("connected", false);
+                int trayMinutes = response.optInt("tray_close_minutes", -1);
+                if (trayMinutes > 0 && !etTrayMinutes.hasFocus()) {
+                    etTrayMinutes.setText(String.valueOf(trayMinutes));
+                }
                 String  ssid      = response.optString("ssid", "—");
                 String  ip        = response.optString("ip",   "—");
                 int     rssi      = response.optInt("rssi",    0);
@@ -237,6 +249,46 @@ public class SettingsActivity extends AppCompatActivity {
         });
     }
 
+    private void saveTrayTimer() {
+        if (espClient == null) {
+            Toast.makeText(this, "Device not reachable.", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        String raw = etTrayMinutes.getText().toString().trim();
+        int minutes;
+        try {
+            minutes = Integer.parseInt(raw);
+        } catch (NumberFormatException e) {
+            minutes = -1;
+        }
+        if (minutes < 1 || minutes > 1440) {
+            Toast.makeText(this, "Enter a time between 1 and 1440 minutes.",
+                    Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        final int saved = minutes;
+        setLoading(true);
+        espClient.setTrayCloseMinutes(saved, new EspApiClient.Callback() {
+            @Override
+            public void onSuccess(JSONObject response) {
+                setLoading(false);
+                Toast.makeText(SettingsActivity.this,
+                        "Tray will close " + saved + " min after a scheduled feeding.",
+                        Toast.LENGTH_LONG).show();
+            }
+
+            @Override
+            public void onError(String errorMessage) {
+                setLoading(false);
+                Toast.makeText(SettingsActivity.this,
+                        "Could not save: " + errorMessage
+                                + "\n(Make sure the feeder firmware is up to date.)",
+                        Toast.LENGTH_LONG).show();
+            }
+        });
+    }
+
     private void confirmRestart() {
         new AlertDialog.Builder(this)
                 .setTitle("Restart Feeder?")
@@ -286,6 +338,7 @@ public class SettingsActivity extends AppCompatActivity {
         layoutDisconnected.setVisibility(View.GONE);
         btnResetWifi.setVisibility(View.VISIBLE);
         btnRestart.setVisibility(View.VISIBLE);
+        layoutTray.setVisibility(View.VISIBLE);
         tvApInfo.setVisibility(View.GONE);
     }
 
@@ -298,6 +351,7 @@ public class SettingsActivity extends AppCompatActivity {
         layoutDisconnected.setVisibility(View.VISIBLE);
         btnResetWifi.setVisibility(View.GONE);
         btnRestart.setVisibility(View.GONE);
+        layoutTray.setVisibility(View.GONE);
         tvApInfo.setVisibility(View.VISIBLE);
     }
 
@@ -307,5 +361,6 @@ public class SettingsActivity extends AppCompatActivity {
         btnChangeWifi.setEnabled(!loading);
         btnResetWifi.setEnabled(!loading);
         btnRestart.setEnabled(!loading);
+        btnSaveTray.setEnabled(!loading);
     }
 }

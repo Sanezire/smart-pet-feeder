@@ -70,6 +70,10 @@
 #define EEPROM_UID_MAGIC        0xA7
 #define EEPROM_PORTION_ADDR     400
 #define EEPROM_DEF_PORTION_ADDR 440
+#define EEPROM_TRAY_CLOSE_ADDR  444   // uint16 minutes the tray stays open after a scheduled feed
+#define TRAY_CLOSE_DEFAULT_MIN  30
+#define TRAY_CLOSE_MIN_MIN      1
+#define TRAY_CLOSE_MAX_MIN      1440
 
 #define WIFI_CONNECT_TIMEOUT_MS   30000UL
 #define WIFI_RECONNECT_TIMEOUT_MS 30000UL
@@ -175,6 +179,10 @@ unsigned long trayLastEndMs       = 0;
 bool          trayHasRun          = false;
 bool          trayAutoOpenPending = false;  // open the tray after a feed reached its target weight
 unsigned long trayAutoOpenAtMs    = 0;
+bool          trayAutoCloseWanted = false;  // the pending auto-open follows a scheduled feed
+bool          trayAutoCloseArmed  = false;  // tray is open and will close by itself
+unsigned long trayAutoCloseAtMs   = 0;
+uint16_t      trayCloseAfterMin   = TRAY_CLOSE_DEFAULT_MIN;
 bool          trayStatusDirty     = false;  // tray open/closed state not yet sent to the cloud
 String        trayRemoteCommandId = "";   // Firebase command to acknowledge when the cycle ends
 String        trayLastCommandId   = "";
@@ -420,6 +428,11 @@ void saveDefaultPortion() {
   EEPROM.commit();
 }
 
+void saveTrayCloseMinutes() {
+  eepromWriteU16(EEPROM_TRAY_CLOSE_ADDR, trayCloseAfterMin);
+  EEPROM.commit();
+}
+
 void loadAccountLink() {
   if (EEPROM.read(EEPROM_UID_MAGIC_ADDR) == EEPROM_UID_MAGIC) {
     String u = eepromReadString(EEPROM_UID_ADDR, EEPROM_UID_LEN);
@@ -427,6 +440,8 @@ void loadAccountLink() {
   }
   uint16_t dp = eepromReadU16(EEPROM_DEF_PORTION_ADDR);
   defaultPortionGrams = (dp > 60000) ? 0.0f : dp / 10.0f;
+  uint16_t tc = eepromReadU16(EEPROM_TRAY_CLOSE_ADDR);
+  trayCloseAfterMin = (tc >= TRAY_CLOSE_MIN_MIN && tc <= TRAY_CLOSE_MAX_MIN) ? tc : TRAY_CLOSE_DEFAULT_MIN;
   Serial.println(deviceUid.length() ? "[Account] Linked to an app account."
                                     : "[Account] Not linked to an app account yet.");
 }
@@ -443,6 +458,8 @@ void linkAccount(const String& uid) {
   saveSchedulesToEEPROM();
   defaultPortionGrams = 0.0f;
   saveDefaultPortion();
+  trayCloseAfterMin = TRAY_CLOSE_DEFAULT_MIN;
+  saveTrayCloseMinutes();
   lastRemoteConfigHash = 0;
   lastProcessedRemoteCommandId = "";
   lastAckedVersion = 0;
@@ -1438,6 +1455,7 @@ void updateFeeder() {
       Serial.println("[Feeder] Servo returned home.");
       if (targetReached) {
         trayAutoOpenPending = true;
+        trayAutoCloseWanted = feedIsScheduled;   // scheduled feeds close the tray on their own later
         trayAutoOpenAtMs    = millis() + TRAY_AUTO_OPEN_DELAY_MS;
         Serial.println("[Tray] Target weight reached - tray opens in " + String(TRAY_AUTO_OPEN_DELAY_MS) + " ms.");
       }
@@ -1628,6 +1646,7 @@ void releaseTrayPin() {
 
 static void beginTrayClose(unsigned long closeMs) {
   trayCloseDurationMs = closeMs;
+  trayAutoCloseArmed  = false;
   trayServo.writeMicroseconds(TRAY_CLOSE_US);
   trayServo2.writeMicroseconds(TRAY2_CLOSE_US);
   trayState        = TRAY_CLOSING;
@@ -1675,8 +1694,17 @@ void updateTray() {
       trayPhaseStartMs = now;
       trayStatusDirty  = true;
       Serial.println("[Tray] Open - holding.");
+      if (trayAutoCloseArmed) {
+        trayAutoCloseAtMs = now + (unsigned long)trayCloseAfterMin * 60000UL;
+        Serial.println("[Tray] Will close automatically in " + String(trayCloseAfterMin) + " min.");
+      }
       return;
     case TRAY_HOLDING:
+      if (trayAutoCloseArmed && !isFeeding && (long)(now - trayAutoCloseAtMs) >= 0) {
+        Serial.println("[Tray] Auto-close time reached - closing tray.");
+        requestTrayClose();
+        return;
+      }
 #if TRAY_AUTO_CLOSE
       if (elapsed < TRAY_HOLD_MS) return;
       beginTrayClose(TRAY_CLOSE_MS);
@@ -1712,14 +1740,25 @@ void updateTray() {
 
 void updateTrayAutoOpen() {
   if (!trayAutoOpenPending) return;
-  if (isFeeding) { trayAutoOpenPending = false; return; }   // a new feed started first
+  if (isFeeding) { trayAutoOpenPending = false; trayAutoCloseWanted = false; return; }   // a new feed started first
   if ((long)(millis() - trayAutoOpenAtMs) < 0) return;
   feederServo.write(SERVO_HOME_ANGLE);                      // make sure the food gate is closed before the tray moves
   int rc = startTray();
   if (rc == TRAY_ERR_COOLDOWN) return;                      // try again on the next loop
   trayAutoOpenPending = false;
-  if (rc == TRAY_OK) Serial.println("[Tray] Auto-opened after feeding; stays open until closed.");
-  else               Serial.println(String("[Tray] Auto-open skipped: ") + trayErrorText(rc));
+  bool autoClose = trayAutoCloseWanted;
+  trayAutoCloseWanted = false;
+  if (rc == TRAY_OK) {
+    trayAutoCloseArmed = autoClose;   // the countdown starts once the tray is fully open
+    if (autoClose) Serial.println("[Tray] Auto-opened after scheduled feeding; closes after " + String(trayCloseAfterMin) + " min.");
+    else           Serial.println("[Tray] Auto-opened after feeding; stays open until closed.");
+  } else if (rc == TRAY_ERR_BUSY && autoClose && trayState == TRAY_HOLDING) {
+    trayAutoCloseArmed = true;        // tray was still open from before: restart the countdown
+    trayAutoCloseAtMs  = millis() + (unsigned long)trayCloseAfterMin * 60000UL;
+    Serial.println("[Tray] Already open - will close in " + String(trayCloseAfterMin) + " min.");
+  } else {
+    Serial.println(String("[Tray] Auto-open skipped: ") + trayErrorText(rc));
+  }
 }
 
 void initServoPinSafe() {
@@ -1828,7 +1867,7 @@ void updateScale() {
 
 String buildStatusJson() {
   reconcileModeWithWifi();
-  StaticJsonDocument<1280> doc;
+  StaticJsonDocument<1536> doc;
   bool wifiConnected = (WiFi.status() == WL_CONNECTED);
   float liveWeight = currentWeightGrams > 0.0f ? currentWeightGrams : 0.0f;
   doc["mode"]        = wifiConnected ? "station"
@@ -1857,6 +1896,10 @@ String buildStatusJson() {
   doc["water_dispensing"] = isWaterDispensing();
   doc["tray_active"]      = (trayState != TRAY_IDLE);
   doc["tray_state"]       = trayStateName();
+  doc["tray_close_minutes"] = trayCloseAfterMin;
+  doc["tray_auto_close_in_s"] = (trayAutoCloseArmed && trayState == TRAY_HOLDING)
+      ? (long)((long)(trayAutoCloseAtMs - millis()) > 0 ? (trayAutoCloseAtMs - millis()) / 1000UL : 0UL)
+      : -1L;
   doc["water_ml"]         = waterTotalMl;
   doc["schedule_count"] = localScheduleCount;
   doc["account_linked"] = (deviceUid.length() > 0);
@@ -2006,6 +2049,33 @@ void handleRestart() {
     "{\"status\":\"ok\",\"message\":\"Restarting device\"}");
   delay(300);
   ESP.restart();
+}
+
+void handleTrayConfig() {
+  addCORSHeaders();
+  if (server.method() == HTTP_OPTIONS) { server.send(204); return; }
+  if (server.method() == HTTP_POST) {
+    if (!server.hasArg("plain")) {
+      server.send(400, "application/json", "{\"error\":\"No body received\"}");
+      return;
+    }
+    StaticJsonDocument<128> in;
+    if (deserializeJson(in, server.arg("plain"))) {
+      server.send(400, "application/json", "{\"error\":\"Invalid JSON\"}");
+      return;
+    }
+    int minutes = in["closeAfterMinutes"] | -1;
+    if (minutes < TRAY_CLOSE_MIN_MIN || minutes > TRAY_CLOSE_MAX_MIN) {
+      server.send(400, "application/json",
+        String("{\"error\":\"closeAfterMinutes must be ") + TRAY_CLOSE_MIN_MIN + "-" + TRAY_CLOSE_MAX_MIN + "\"}");
+      return;
+    }
+    trayCloseAfterMin = (uint16_t)minutes;
+    saveTrayCloseMinutes();
+    Serial.println("[Tray] Auto-close time set to " + String(trayCloseAfterMin) + " min.");
+  }
+  server.send(200, "application/json",
+    String("{\"status\":\"ok\",\"closeAfterMinutes\":") + trayCloseAfterMin + "}");
 }
 
 void handleFeedNow() {
@@ -2293,6 +2363,9 @@ void setupWebServer() {
   server.on("/reset-wifi", HTTP_POST,    handleResetWifi);
   server.on("/reset-wifi", HTTP_OPTIONS, handleResetWifi);
   server.on("/restart",    HTTP_POST,    handleRestart);
+  server.on("/tray-config", HTTP_POST,    handleTrayConfig);
+  server.on("/tray-config", HTTP_GET,     handleTrayConfig);
+  server.on("/tray-config", HTTP_OPTIONS, handleTrayConfig);
   server.on("/feed-now",   HTTP_POST,    handleFeedNow);
   server.on("/feed-now",   HTTP_OPTIONS, handleFeedNow);
   server.on("/command",    HTTP_POST,    handleCommand);
