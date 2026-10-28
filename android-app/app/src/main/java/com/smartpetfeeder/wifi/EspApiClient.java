@@ -297,6 +297,47 @@ public class EspApiClient {
         });
     }
 
+    public void getSchedules(Callback callback) {
+        executor.execute(() -> {
+            try {
+                JSONObject response = get("/schedules", TIMEOUT_CONNECT, TIMEOUT_READ);
+                mainHandler.post(() -> callback.onSuccess(response));
+            } catch (Exception e) {
+                Log.e(TAG, "getSchedules error", e);
+                mainHandler.post(() -> callback.onError(friendlyError(e.getMessage())));
+            }
+        });
+    }
+
+    /** Sets the feeder's clock from the phone (the feeder has no clock of its own without internet). */
+    public void setTime(Callback callback) {
+        executor.execute(() -> {
+            try {
+                JSONObject body = new JSONObject();
+                body.put("nowEpochSeconds", System.currentTimeMillis() / 1000L);
+                JSONObject response = post("/time", body.toString(), TIMEOUT_CONNECT, TIMEOUT_READ);
+                if (callback != null) mainHandler.post(() -> callback.onSuccess(response));
+            } catch (Exception e) {
+                Log.e(TAG, "setTime error", e);
+                if (callback != null) mainHandler.post(() -> callback.onError(friendlyError(e.getMessage())));
+            }
+        });
+    }
+
+    /** Keep the feeder's own Wi-Fi available even while it is connected to a router. */
+    public void setDirectMode(boolean enabled, Callback callback) {
+        executor.execute(() -> {
+            try {
+                JSONObject response = post("/direct-mode",
+                        "{\"enabled\":" + enabled + "}", TIMEOUT_CONNECT, TIMEOUT_READ);
+                mainHandler.post(() -> callback.onSuccess(response));
+            } catch (Exception e) {
+                Log.e(TAG, "setDirectMode error", e);
+                mainHandler.post(() -> callback.onError(friendlyError(e.getMessage())));
+            }
+        });
+    }
+
     public void ping(Callback callback) {
         getStatus(callback);
     }

@@ -185,6 +185,15 @@
                     android:textStyle="bold"/>
             </LinearLayout>
 
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnUseDirect"
+                style="@style/Widget.SmartPetFeeder.Button"
+                android:layout_width="match_parent"
+                android:layout_height="52dp"
+                android:layout_marginTop="20dp"
+                android:text="Use feeder directly (no account)"
+                android:textSize="14sp"/>
+
         </LinearLayout>
     </LinearLayout>
 </androidx.core.widget.NestedScrollView>

@@ -17,6 +17,8 @@ import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseAuthInvalidCredentialsException;
 import com.smartpetfeeder.MainActivity;
 import com.smartpetfeeder.R;
+import com.smartpetfeeder.util.LocalScheduleStore;
+import com.smartpetfeeder.wifi.DirectControlActivity;
 
 public class LoginActivity extends AppCompatActivity {
     private EditText etEmail;
@@ -39,6 +41,11 @@ public class LoginActivity extends AppCompatActivity {
         btnLogin.setOnClickListener(v -> login());
         tvRegister.setOnClickListener(v ->
                 startActivity(new Intent(this, RegisterActivity.class)));
+        findViewById(R.id.btnUseDirect).setOnClickListener(v -> {
+            LocalScheduleStore.setDirectEntry(this, true);
+            startActivity(new Intent(this, DirectControlActivity.class));
+            finish();
+        });
     }
 
     private void login() {

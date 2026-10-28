@@ -9,6 +9,8 @@ import androidx.appcompat.app.AppCompatDelegate;
 
 import com.google.firebase.auth.FirebaseAuth;
 import com.smartpetfeeder.MainActivity;
+import com.smartpetfeeder.util.LocalScheduleStore;
+import com.smartpetfeeder.wifi.DirectControlActivity;
 
 public class AuthGateActivity extends AppCompatActivity {
 
@@ -25,7 +27,11 @@ public class AuthGateActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
 
         if (FirebaseAuth.getInstance().getCurrentUser() == null) {
-            startActivity(new Intent(this, LoginActivity.class));
+            if (LocalScheduleStore.isDirectEntry(this)) {
+                startActivity(new Intent(this, DirectControlActivity.class));
+            } else {
+                startActivity(new Intent(this, LoginActivity.class));
+            }
         } else {
             startActivity(new Intent(this, MainActivity.class));
         }
