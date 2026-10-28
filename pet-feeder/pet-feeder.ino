@@ -118,7 +118,7 @@
 #define WIFI_RETRY_MAX_MS         30000UL
 #define FIREBASE_HTTP_TIMEOUT_MS  5000
 #define FEED_SETTLE_MS            1500UL
-#define GATE_CLOSE_DELAY_MS       5000UL  // food gate stays open this long after the target weight is reached
+#define GATE_CLOSE_DELAY_MS       1000UL  // food gate stays open this long after the target weight is reached
 #define PORTION_LOW_RATIO         0.80f
 #define PORTION_HIGH_RATIO        1.20f
 #define MAX_PENDING_RECORDS       8
