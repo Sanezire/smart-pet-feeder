@@ -1606,8 +1606,7 @@ public class MainActivity extends AppCompatActivity implements FirebaseService.D
             @Override
             public void onNotFound() {
                 if (showResultToast) {
-                    Toast.makeText(MainActivity.this,
-                            "Saved in app, but feeder was not reachable for sync.",
+                    Toast.makeText(MainActivity.this, R.string.sync_schedule_via_cloud,
                             Toast.LENGTH_LONG).show();
                 }
             }

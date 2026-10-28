@@ -2,7 +2,10 @@ package com.smartpetfeeder.wifi;
 
 import android.content.Context;
 import android.content.SharedPreferences;
+import android.net.ConnectivityManager;
 import android.net.DhcpInfo;
+import android.net.Network;
+import android.net.NetworkCapabilities;
 import android.net.nsd.NsdManager;
 import android.net.nsd.NsdServiceInfo;
 import android.net.wifi.WifiManager;
@@ -32,6 +35,9 @@ public class DeviceDiscovery {
     private static final String MDNS_HOSTNAME = "petfeeder.local";
     private static final int    HTTP_CONNECT_TIMEOUT = 3000;
     private static final int    HTTP_READ_TIMEOUT = 5000;
+    private static final int    NSD_WAIT_MS = 2500;
+    private static final int    NSD_WAIT_OTHER_NETWORK_MS = 1500;
+    private static final long   SUBNET_SCAN_BUDGET_MS = 20_000L;
 
     private final Context         context;
     private final ExecutorService executor    = Executors.newFixedThreadPool(2);
@@ -88,6 +94,15 @@ public class DeviceDiscovery {
     private void runDiscovery(DiscoveryCallback callback) {
         StringBuilder trace = new StringBuilder();
 
+        // Mobile data (or no WiFi at all): the feeder cannot be on this network, so skip the
+        // local search and let the caller send the command through the cloud right away.
+        if (!isOnWifi() && !isConnectedToFeederAP()) {
+            trace.append("no_wifi;");
+            lastDiscoveryTrace = trace.toString();
+            mainHandler.post(callback::onNotFound);
+            return;
+        }
+
         if (isConnectedToFeederAP()) {
             trace.append("on_ap_ssid;");
             Log.d(TAG, "Phone is connected to PetFeeder_Setup AP.");
@@ -112,6 +127,26 @@ public class DeviceDiscovery {
         trace.append("ap_direct_probe_fail;");
 
         String lastIp = getLastKnownIp();
+
+        // On a different WiFi than the one the feeder was last seen on (cafe, office, a friend's
+        // place): only a quick multicast check, then hand over to the cloud instead of probing
+        // that network's addresses one by one.
+        String phonePrefix = phoneSubnetPrefix();
+        if (lastIp != null && !lastIp.isEmpty() && phonePrefix != null && !lastIp.startsWith(phonePrefix)) {
+            trace.append("other_network;");
+            String quickNsd = tryNsdDiscovery(NSD_WAIT_OTHER_NETWORK_MS);
+            if (quickNsd != null) {
+                trace.append("nsd_ok;");
+                lastDiscoveryTrace = trace.toString();
+                deliverFound(callback, quickNsd, "nsd");
+                return;
+            }
+            trace.append("nsd_fail;");
+            lastDiscoveryTrace = trace.toString();
+            mainHandler.post(callback::onNotFound);
+            return;
+        }
+
         if (lastIp != null && !lastIp.isEmpty()) {
             String url = "http://" + lastIp;
             trace.append("try_last_ip=").append(lastIp).append(";");
@@ -183,6 +218,10 @@ public class DeviceDiscovery {
     }
 
     private String tryNsdDiscovery() {
+        return tryNsdDiscovery(NSD_WAIT_MS);
+    }
+
+    private String tryNsdDiscovery(int waitMs) {
         NsdManager nsd = (NsdManager) context.getSystemService(Context.NSD_SERVICE);
         if (nsd == null) return null;
         CountDownLatch latch = new CountDownLatch(1);
@@ -217,7 +256,7 @@ public class DeviceDiscovery {
 
         try {
             nsd.discoverServices("_http._tcp.", NsdManager.PROTOCOL_DNS_SD, holder[0]);
-            latch.await(2500, TimeUnit.MILLISECONDS);
+            latch.await(waitMs, TimeUnit.MILLISECONDS);
         } catch (Exception e) {
             Log.d(TAG, "NSD discovery failed: " + e.getMessage());
         } finally {
@@ -240,14 +279,17 @@ public class DeviceDiscovery {
             String prefix = parts[0] + "." + parts[1] + "." + parts[2] + ".";
 
             int currentIpHost = (dhcp.ipAddress & 0xFF);
+            final long scanDeadline = System.currentTimeMillis() + SUBNET_SCAN_BUDGET_MS;
 
             for (int host = 100; host <= 200; host++) {
+                if (System.currentTimeMillis() > scanDeadline) return null;
                 if (host == currentIpHost) continue;
                 String candidate = "http://" + prefix + host;
                 if (isReachable(candidate, 900, 1100)) return candidate;
             }
 
             for (int host = 2; host <= 254; host++) {
+                if (System.currentTimeMillis() > scanDeadline) return null;
                 if (host == currentIpHost) continue;
                 String candidate = "http://" + prefix + host;
                 if (isReachable(candidate, 500, 700)) return candidate;
@@ -256,6 +298,35 @@ public class DeviceDiscovery {
             Log.d(TAG, "Subnet scan failed: " + e.getMessage());
         }
         return null;
+    }
+
+    @SuppressWarnings("deprecation")
+    private boolean isOnWifi() {
+        try {
+            ConnectivityManager cm =
+                    (ConnectivityManager) context.getSystemService(Context.CONNECTIVITY_SERVICE);
+            if (cm == null) return true;
+            for (Network network : cm.getAllNetworks()) {
+                NetworkCapabilities caps = cm.getNetworkCapabilities(network);
+                if (caps != null && caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)) return true;
+            }
+            return false;
+        } catch (Exception e) {
+            return true;   // unsure: keep the normal local search
+        }
+    }
+
+    private String phoneSubnetPrefix() {
+        try {
+            WifiManager wifiManager = (WifiManager) context.getSystemService(Context.WIFI_SERVICE);
+            if (wifiManager == null) return null;
+            DhcpInfo dhcp = wifiManager.getDhcpInfo();
+            if (dhcp == null || dhcp.ipAddress == 0) return null;
+            int ip = dhcp.ipAddress;
+            return (ip & 0xFF) + "." + ((ip >> 8) & 0xFF) + "." + ((ip >> 16) & 0xFF) + ".";
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     private boolean isReachable(String baseUrl) {

@@ -253,6 +253,7 @@
     <string name="sync_now">Sync now</string>
     <string name="sync_retry">Retry</string>
     <string name="sync_saving">Saving…</string>
+    <string name="sync_schedule_via_cloud">Saved. The feeder is not on this network, so it will receive the schedule over the internet.</string>
     <string name="sync_saved">Saved</string>
     <string name="sync_saved_offline">Saved on this phone. Will sync when online</string>
     <string name="sync_save_failed">Could not save yet. Will retry automatically</string>
