@@ -1524,12 +1524,13 @@ void updateFeeder() {
       feederServo.write(SERVO_HOME_ANGLE);
       isFeeding = false;
       Serial.println("[Feeder] Servo returned home.");
-      if (targetReached) {
-        trayAutoOpenPending = true;
-        trayAutoCloseWanted = feedIsScheduled;   // scheduled feeds close the tray on their own later
-        trayAutoOpenAtMs    = millis() + TRAY_AUTO_OPEN_DELAY_MS;
-        Serial.println("[Tray] Target weight reached - tray opens in " + String(TRAY_AUTO_OPEN_DELAY_MS) + " ms.");
-      }
+      // Open the tray after every feed that ends, whether or not the target weight was reached
+      // (hopper empty, timed out, or scale lost), so the pet can always reach the food.
+      trayAutoOpenPending = true;
+      trayAutoCloseWanted = feedIsScheduled;   // scheduled feeds close the tray on their own later
+      trayAutoOpenAtMs    = millis() + TRAY_AUTO_OPEN_DELAY_MS;
+      Serial.println(String(targetReached ? "[Tray] Target weight reached" : "[Tray] Feed ended without reaching the target")
+                     + " - tray opens in " + String(TRAY_AUTO_OPEN_DELAY_MS) + " ms.");
       if (feedIsScheduled || feedRecordId.length() > 0) {
         feedFinalizePending = true;
         feedFinalizeAtMs    = millis() + FEED_SETTLE_MS;
