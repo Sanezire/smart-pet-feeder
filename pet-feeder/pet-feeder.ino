@@ -118,7 +118,6 @@
 #define WIFI_RETRY_MAX_MS         30000UL
 #define FIREBASE_HTTP_TIMEOUT_MS  5000
 #define FEED_SETTLE_MS            1500UL
-#define GATE_CLOSE_DELAY_MS       5000UL  // food gate stays open this long after the target weight is reached
 #define PORTION_LOW_RATIO         0.80f
 #define PORTION_HIGH_RATIO        1.20f
 #define MAX_PENDING_RECORDS       8
@@ -160,8 +159,6 @@ String        savedSSID           = "";
 String        savedPassword       = "";
 bool          isFeeding           = false;
 unsigned long feedingStartMs      = 0;
-bool          feedGateClosePending = false;  // target reached, gate held open until feedGateCloseAtMs
-unsigned long feedGateCloseAtMs   = 0;
 unsigned long connectStartMs      = 0;
 String        provisionToken      = "";
 unsigned long provisionTokenExpiryMs = 0;
@@ -1444,7 +1441,6 @@ void triggerFeed(float portionGrams, bool scheduled) {
   feedStartWeight     = fastWeightGrams;
   feedIsScheduled     = scheduled;
   feedFinalizePending = false;
-  feedGateClosePending = false;
   feedBowlFull        = false;
   feedTimedOut        = false;
   feedNeedGrams       = 0.0f;
@@ -1497,20 +1493,12 @@ void updateFeeder() {
     bool stop = false;
     bool targetReached = false;
 
-    if (feedGateClosePending) {
-      // Target already reached: keep the gate open for the delay, whatever the scale does meanwhile.
-      if ((long)(millis() - feedGateCloseAtMs) >= 0) {
+    if (feedWeightMode && scaleAvailable && hasValidLiveWeight()) {
+      if (fastWeightGrams >= feedStopAt) {
         stop = true;
         targetReached = true;
-        Serial.println("[Feeder] Gate delay over at " + String(fastWeightGrams, 1) + " g - closing.");
-      }
-    } else if (feedWeightMode && scaleAvailable && hasValidLiveWeight()) {
-      if (fastWeightGrams >= feedStopAt) {
-        feedGateClosePending = true;
-        feedGateCloseAtMs    = millis() + GATE_CLOSE_DELAY_MS;
         Serial.println("[Feeder] Target reached: " + String(fastWeightGrams, 1) + " g >= stopAt "
-                       + String(feedStopAt, 1) + " g after " + String(elapsed) + " ms - gate stays open for "
-                       + String(GATE_CLOSE_DELAY_MS) + " ms.");
+                       + String(feedStopAt, 1) + " g after " + String(elapsed) + " ms");
       } else if (elapsed >= DISPENSE_MAX_MS) {
         stop = true;
         feedTimedOut = true;
@@ -1535,7 +1523,6 @@ void updateFeeder() {
     if (stop) {
       feederServo.write(SERVO_HOME_ANGLE);
       isFeeding = false;
-      feedGateClosePending = false;
       Serial.println("[Feeder] Servo returned home.");
       if (targetReached) {
         trayAutoOpenPending = true;
