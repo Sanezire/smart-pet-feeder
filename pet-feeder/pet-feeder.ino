@@ -1314,6 +1314,11 @@ void completeEatCheck() {
   liveRemainingJson = "";
   float after = eatCheck.lastRemaining;
   float consumed = eatCheck.consumed;
+  if (eatFinalByTray && !eatCheck.bowlRemoved) {
+    float net = eatCheck.afterDispense - after;
+    if (net > consumed) consumed = net;
+    if (consumed > eatCheck.afterDispense) consumed = eatCheck.afterDispense;
+  }
   lastFinalRemaining  = after;
   lastFinalStatsValid = hasValidLiveWeight() && !eatCheck.bowlRemoved && after >= 0.0f;
   liveFeedEndPending  = true;
