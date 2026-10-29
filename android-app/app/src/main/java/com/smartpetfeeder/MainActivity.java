@@ -54,6 +54,7 @@ import com.smartpetfeeder.model.AnomalyAlert;
 import com.smartpetfeeder.model.DashboardData;
 import com.smartpetfeeder.model.FeedingRecord;
 import com.smartpetfeeder.model.FeedingSchedule;
+import com.smartpetfeeder.model.DeviceFeedSummary;
 import com.smartpetfeeder.model.LiveFeedingStats;
 import com.smartpetfeeder.model.PetProfile;
 import com.smartpetfeeder.model.SummaryStats;
@@ -194,6 +195,8 @@ public class MainActivity extends AppCompatActivity implements FirebaseService.D
 
     private static final long FEED_FINAL_NOTIFY_MAX_AGE_MS = 24 * 60 * 60_000L;
     private LiveFeedingStats liveFeeding;
+    private DeviceFeedSummary deviceFeed;
+    private final Set<String> deviceFeedUploaded = new HashSet<>();
     private View     cardLiveFeeding;
     private TextView tvLiveFeedTarget, tvLiveFeedConsumed, tvLiveFeedRemaining, tvLiveFeedMeta;
     private static final long LOCAL_PRIORITY_MS = 6_000L;   // a local reading beats Firebase for this long
@@ -271,6 +274,10 @@ public class MainActivity extends AppCompatActivity implements FirebaseService.D
                                                 float consumed, float remaining, boolean bowlRemoved) {
                 onLiveFeedingUpdated(new LiveFeedingStats(active, feedingId, target,
                         consumed, remaining, bowlRemoved));
+            }
+
+            @Override public void onLastFeed(DeviceFeedSummary summary) {
+                onDeviceFeedUpdated(summary);
             }
         });
         firebaseService.setSyncListener(syncListener);
@@ -1804,6 +1811,7 @@ public class MainActivity extends AppCompatActivity implements FirebaseService.D
         runOnUiThread(() -> {
             if (isFinishing() || isDestroyed() || data == null) return;
             latestDashboardData = data;
+            applyDeviceFeed(data.getFeedingHistory());
             if (isFirstLoad) {
                 timeoutHandler.removeCallbacksAndMessages(null);
                 showContentState();
@@ -1944,6 +1952,34 @@ public class MainActivity extends AppCompatActivity implements FirebaseService.D
             applyPhoneOnlineToChip();
             refreshSystemNotification();
         });
+    }
+
+    private void onDeviceFeedUpdated(DeviceFeedSummary summary) {
+        runOnUiThread(() -> {
+            if (isFinishing() || isDestroyed() || summary == null) return;
+            deviceFeed = summary;
+            DashboardData data = latestDashboardData;
+            if (data != null && applyDeviceFeed(data.getFeedingHistory())) {
+                historyAdapter.refreshAll();
+                notifyFinalizedFeedings();
+            }
+        });
+    }
+
+    private boolean applyDeviceFeed(List<FeedingRecord> records) {
+        DeviceFeedSummary s = deviceFeed;
+        if (s == null || records == null) return false;
+        boolean changed = false;
+        for (FeedingRecord r : records) {
+            java.util.Map<String, Object> filled = s.applyTo(r);
+            if (filled == null) continue;
+            changed = true;
+            String key = s.getFeedingId() + (s.isFinished() ? "#final" : "#dispensed");
+            if (firebaseService != null && deviceFeedUploaded.add(key)) {
+                firebaseService.updateFeedingRecordFields(s.getFeedingId(), filled);
+            }
+        }
+        return changed;
     }
 
     private void onLiveFeedingUpdated(LiveFeedingStats stats) {

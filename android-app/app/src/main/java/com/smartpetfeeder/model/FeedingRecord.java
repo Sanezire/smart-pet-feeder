@@ -148,8 +148,15 @@ public class FeedingRecord {
     }
 
     @Exclude
+    public boolean isAwaitingFeederData() {
+        return isManualFeed() && getStatusEnum() == Status.COMPLETED
+                && !isDispensedKnown() && !consumptionRecorded;
+    }
+
+    @Exclude
     public boolean isInProgress(long nowMs) {
-        if (getStatusEnum() != Status.COMPLETED || !isConsumptionPending()) return false;
+        if (getStatusEnum() != Status.COMPLETED) return false;
+        if (!isConsumptionPending() && !isAwaitingFeederData()) return false;
         if (actualTime <= 0L) return true;
         long windowMs = eatWindowMs > 0 ? eatWindowMs : 30L * 60_000L;
         return nowMs - actualTime <= windowMs + 5L * 60_000L;

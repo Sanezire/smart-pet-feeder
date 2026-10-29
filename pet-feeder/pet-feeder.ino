@@ -273,6 +273,46 @@ EatCheck eatCheck = { false, "", 0.0f, 0, 0, 0, 0.0f, 0.0f, 0.0f, false, 0, 0.0f
 bool          lastFinalStatsValid = false;
 float         lastFinalRemaining  = 0.0f;
 
+struct LastFeed {
+  bool   valid;
+  String id;
+  bool   manual;
+  float  target;
+  float  before;
+  float  afterDispense;
+  float  dispensed;
+  bool   bowlFull;
+  bool   finished;
+  float  consumed;
+  float  remaining;
+  bool   byTray;
+};
+LastFeed lastFeed = { false, "", true, 0.0f, 0.0f, 0.0f, 0.0f, false, false, 0.0f, 0.0f, false };
+
+void setLastFeedDispensed(const String& id, bool manual, float target, float before,
+                          float afterDispense, float dispensed, bool bowlFull) {
+  lastFeed.valid         = true;
+  lastFeed.id            = id;
+  lastFeed.manual        = manual;
+  lastFeed.target        = target;
+  lastFeed.before        = before;
+  lastFeed.afterDispense = afterDispense;
+  lastFeed.dispensed     = dispensed;
+  lastFeed.bowlFull      = bowlFull;
+  lastFeed.finished      = false;
+  lastFeed.consumed      = 0.0f;
+  lastFeed.remaining     = afterDispense;
+  lastFeed.byTray        = false;
+}
+
+void setLastFeedFinal(const String& id, float consumed, float remaining, bool byTray) {
+  if (!lastFeed.valid || lastFeed.id != id) return;
+  lastFeed.finished  = true;
+  lastFeed.consumed  = consumed;
+  lastFeed.remaining = remaining;
+  lastFeed.byTray    = byTray;
+}
+
 bool          liveFeedDirty            = false;
 bool          liveFeedEndPending       = false;
 float         liveFeedSentRemaining    = -1000.0f;
@@ -1161,6 +1201,7 @@ void flushPendingRecords() {
 }
 
 void queueFeedingRecord(const String& id, const String& json) {
+  if (deviceUid.length() == 0) return;
   if (pendingRecordCount >= MAX_PENDING_RECORDS) {
     for (int i = 1; i < pendingRecordCount; i++) pendingRecords[i - 1] = pendingRecords[i];
     pendingRecordCount--;
@@ -1198,14 +1239,17 @@ void startEatCheck(const String& id, float afterDispenseGrams) {
 }
 
 void trackManualFeedRecord() {
-  if (!scaleAvailable || deviceUid.length() == 0 || feedRecordId.length() == 0) {
+  if (!scaleAvailable || feedRecordId.length() == 0) {
     Serial.println("[Record] Manual feed NOT tracked - scale " + String(scaleAvailable ? "ok" : "unavailable")
-                   + ", account " + String(deviceUid.length() > 0 ? "linked" : "NOT linked")
                    + ", record id " + String(feedRecordId.length() > 0 ? "present" : "missing (feed started without the app's record)"));
     return;
   }
   float after = currentWeightGrams > 0.0f ? currentWeightGrams : 0.0f;
-  String json = "{\"weightBeforeFeed\":" + String(feedStartWeight > 0.0f ? feedStartWeight : 0.0f, 1) +
+  float before = feedStartWeight > 0.0f ? feedStartWeight : 0.0f;
+  float added = feedBowlFull ? 0.0f : after - before;
+  if (added < 0.0f) added = 0.0f;
+  setLastFeedDispensed(feedRecordId, true, feedTargetGrams, before, after, added, feedBowlFull);
+  String json = "{\"weightBeforeFeed\":" + String(before, 1) +
       ",\"weightAfterDispense\":" + String(after, 1) +
       ",\"remainingWeight\":" + String(after, 1) +
       ",\"consumedWeight\":0.0"
@@ -1213,13 +1257,9 @@ void trackManualFeedRecord() {
       ",\"eatWindowMs\":" + String(EAT_WINDOW_MS) +
       ",\"feedType\":\"manual\"";
   if (feedTargetGrams > 0.0f) json += ",\"targetWeight\":" + String(feedTargetGrams, 1);
-  if (feedWeightMode) {
-    float added = feedBowlFull ? 0.0f : after - feedStartWeight;
-    if (added < 0.0f) added = 0.0f;
-    json += ",\"dispensedWeight\":" + String(added, 1)
-          + ",\"bowlAlreadyFull\":" + String(feedBowlFull ? "true" : "false");
-    if (feedTimedOut) json += ",\"status\":\"Anomaly\",\"anomalyFlag\":true";
-  }
+  json += ",\"dispensedWeight\":" + String(added, 1)
+        + ",\"bowlAlreadyFull\":" + String(feedBowlFull ? "true" : "false");
+  if (feedWeightMode && feedTimedOut) json += ",\"status\":\"Anomaly\",\"anomalyFlag\":true";
   json += "}";
   queueFeedingRecord(feedRecordId, json);
   startEatCheck(feedRecordId, after);
@@ -1277,6 +1317,7 @@ void completeEatCheck() {
   lastFinalRemaining  = after;
   lastFinalStatsValid = hasValidLiveWeight() && !eatCheck.bowlRemoved && after >= 0.0f;
   liveFeedEndPending  = true;
+  setLastFeedFinal(eatCheck.id, consumed, after, eatFinalByTray);
   String json = "{\"weightAfterEating\":" + String(after, 1) +
       ",\"consumedWeight\":" + String(consumed, 1) +
       ",\"remainingWeight\":" + String(after, 1) +
@@ -1352,11 +1393,6 @@ void finalizeScheduledFeedRecord() {
     Serial.println("[Record] Skipped - needs the load cell and a portion size.");
     return;
   }
-  if (deviceUid.length() == 0) {
-    Serial.println("[Record] Scheduled feed NOT tracked - account NOT linked (no UID on the feeder).");
-    return;
-  }
-
   float after = currentWeightGrams > 0.0f ? currentWeightGrams : 0.0f;
   float before = feedStartWeight > 0.0f ? feedStartWeight : 0.0f;
   float dispensed = feedBowlFull ? 0.0f : after - before;
@@ -1392,6 +1428,7 @@ void finalizeScheduledFeedRecord() {
       ",\"status\":\"" + String(anomaly ? "Anomaly" : "Completed") + "\""
       ",\"anomalyFlag\":" + String(anomaly ? "true" : "false") +
       ",\"date\":\"" + feedDateStr + "\"}";
+  setLastFeedDispensed(id, false, feedTargetGrams, before, after, dispensed, feedBowlFull);
   queueFeedingRecord(id, json);
   startEatCheck(id, after);
   Serial.println("[Record] Queued " + id + " - target " + String(feedTargetGrams, 1)
@@ -2091,6 +2128,20 @@ String buildStatusJson() {
   doc["local_hour"] = currentLocalHour;
   doc["local_minute"] = currentLocalMinute;
   doc["local_wday"] = currentLocalWday;
+  if (lastFeed.valid) {
+    JsonObject lf = doc.createNestedObject("last_feed");
+    lf["feedingId"]     = lastFeed.id;
+    lf["type"]          = lastFeed.manual ? "manual" : "scheduled";
+    lf["target"]        = lastFeed.target;
+    lf["before"]        = lastFeed.before;
+    lf["afterDispense"] = lastFeed.afterDispense;
+    lf["dispensed"]     = lastFeed.dispensed;
+    lf["bowlFull"]      = lastFeed.bowlFull;
+    lf["finished"]      = lastFeed.finished;
+    lf["consumed"]      = lastFeed.consumed;
+    lf["remaining"]     = lastFeed.remaining;
+    lf["byTray"]        = lastFeed.byTray;
+  }
 
   String output;
   serializeJson(doc, output);
@@ -2303,7 +2354,7 @@ void handleCommand() {
     }
     float portion = doc["portionGrams"] | 0.0f;
     String commandId = doc["commandId"] | "";
-    if (commandId.length() > 0 && deviceUid.length() > 0) feedManualRecordId = commandId;
+    if (commandId.length() > 0) feedManualRecordId = commandId;
     triggerFeed(portion);
     server.send(200, "application/json",
       "{\"status\":\"ok\",\"message\":\"Manual feed test accepted\",\"led_flashes\":5}");

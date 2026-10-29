@@ -3,6 +3,8 @@ package com.smartpetfeeder.wifi;
 import android.os.Handler;
 import android.os.Looper;
 
+import com.smartpetfeeder.model.DeviceFeedSummary;
+
 import org.json.JSONObject;
 
 /**
@@ -17,6 +19,8 @@ public class LocalLiveWeightPoller {
 
         void onLiveFeeding(boolean active, String feedingId, float target,
                            float consumed, float remaining, boolean bowlRemoved);
+
+        void onLastFeed(DeviceFeedSummary summary);
     }
 
     private static final long POLL_MS       = 2000L;   // gentle on the ESP8266's small heap
@@ -123,5 +127,7 @@ public class LocalLiveWeightPoller {
                     (float) r.optDouble("live_remaining", 0.0),
                     r.optBoolean("live_bowl_removed", false));
         }
+        DeviceFeedSummary summary = DeviceFeedSummary.fromJson(r.optJSONObject("last_feed"));
+        if (summary != null) listener.onLastFeed(summary);
     }
 }

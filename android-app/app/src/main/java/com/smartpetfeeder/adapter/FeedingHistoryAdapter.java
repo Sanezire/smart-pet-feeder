@@ -23,6 +23,10 @@ public class FeedingHistoryAdapter extends RecyclerView.Adapter<FeedingHistoryAd
     private List<FeedingRecord> records = new ArrayList<>();
     private final java.util.Map<String, Boolean> boundProgress = new java.util.HashMap<>();
 
+    public void refreshAll() {
+        notifyItemRangeChanged(0, records.size());
+    }
+
     public void refreshProgress() {
         long now = System.currentTimeMillis();
         for (int i = 0; i < records.size(); i++) {
@@ -134,6 +138,7 @@ public class FeedingHistoryAdapter extends RecyclerView.Adapter<FeedingHistoryAd
 
         /** Dispensed / Consumed / Remaining lines, identical for manual and scheduled feeds. */
         private String buildBreakdown(FeedingRecord r) {
+            boolean waiting = r.isAwaitingFeederData() && r.isInProgress(System.currentTimeMillis());
             String dispensed;
             if (r.isBowlAlreadyFull()) {
                 dispensed = "Dispensed: 0.0g (bowl already full)";
@@ -141,23 +146,21 @@ public class FeedingHistoryAdapter extends RecyclerView.Adapter<FeedingHistoryAd
                 dispensed = String.format(Locale.US, "Dispensed: %.1fg  (bowl %.1fg to %.1fg)",
                         r.getDispensedWeight(), r.getWeightBeforeFeed(), r.getWeightAfterDispense());
             } else {
-                dispensed = "Dispensed: waiting for feeder data";
+                dispensed = waiting ? "Dispensed: waiting for feeder data" : "Dispensed: no data from feeder";
             }
 
             String consumed;
             String remaining;
             if (!r.isDispensedKnown()) {
-                consumed = "Consumed: --";
-                remaining = "Remaining: --";
+                consumed = waiting ? "Consumed: pending, measured when the tray closes" : "Consumed: --";
+                remaining = waiting ? "Remaining: pending, measured when the tray closes" : "Remaining: --";
             } else if (r.isConsumptionRecorded()) {
                 consumed = String.format(Locale.US, "Consumed: %.1fg%s", r.getDisplayConsumedWeight(),
                         r.isMeasuredAfterTrayClose() ? "  (measured after the tray closed)" : "");
                 remaining = String.format(Locale.US, "Remaining: %.1fg", r.getRemainingWeight());
             } else {
-                consumed = String.format(Locale.US,
-                        "Consumed: pending, measured when the tray closes (so far %.1fg)",
-                        r.getDisplayConsumedWeight());
-                remaining = String.format(Locale.US, "Remaining: %.1fg (live)", r.getRemainingWeight());
+                consumed = "Consumed: pending, measured when the tray closes";
+                remaining = "Remaining: pending, measured when the tray closes";
             }
             return dispensed + "\n" + consumed + "\n" + remaining;
         }
@@ -197,10 +200,11 @@ public class FeedingHistoryAdapter extends RecyclerView.Adapter<FeedingHistoryAd
             switch (record.getStatusEnum()) {
                 case COMPLETED:
                     boolean inProgress = record.isInProgress(System.currentTimeMillis());
+                    boolean noData = record.isAwaitingFeederData() && !inProgress;
                     boundProgress.put(record.getFeedingId(), inProgress);
-                    int badgeColor = inProgress ? R.color.colorStatusWarning : R.color.colorStatusCompleted;
-                    tvStatusBadge.setText(inProgress ? "IN PROGRESS" : "COMPLETED");
-                    tvStatusBadge.setBackgroundResource(inProgress
+                    int badgeColor = (inProgress || noData) ? R.color.colorStatusWarning : R.color.colorStatusCompleted;
+                    tvStatusBadge.setText(inProgress ? "IN PROGRESS" : (noData ? "NO DATA" : "COMPLETED"));
+                    tvStatusBadge.setBackgroundResource((inProgress || noData)
                             ? R.drawable.badge_warning : R.drawable.badge_completed);
                     tvStatusBadge.setTextColor(ContextCompat.getColor(
                             itemView.getContext(), badgeColor));

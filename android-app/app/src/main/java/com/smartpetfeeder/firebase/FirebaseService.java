@@ -298,6 +298,12 @@ public class FirebaseService {
         this.liveWeightListener = listener;
     }
 
+    public void updateFeedingRecordFields(String feedingId, Map<String, Object> fields) {
+        if (recordsRef == null || feedingId == null || fields == null || fields.isEmpty()) return;
+        recordsRef.child(feedingId).updateChildren(fields)
+                .addOnFailureListener(e -> Log.w(TAG, "feeding record update failed", e));
+    }
+
     public void setLiveFeedingListener(LiveFeedingListener listener) {
         this.liveFeedingListener = listener;
     }
