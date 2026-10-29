@@ -308,7 +308,7 @@ public class SettingsActivity extends AppCompatActivity {
         }
 
         final int saved = minutes;
-        final String done = "Tray will close " + saved + " min after a scheduled feeding.";
+        final String done = "Tray will close " + saved + " min after a feeding.";
 
         if (espClient != null) {
             espClient.setTrayCloseMinutes(saved, new EspApiClient.Callback() {

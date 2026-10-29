@@ -208,6 +208,7 @@ unsigned long eatTrayCloseAtMs    = 0;
 bool          eatFinalByTray      = false;  // the last finalized record was measured after the tray closed
 bool          apAlwaysOn          = false;  // keep PetFeeder_Setup up even while connected to a router
 bool          trayStatusDirty     = false;  // tray open/closed state not yet sent to the cloud
+bool          trayConfigPushPending = false;
 String        trayRemoteCommandId = "";   // Firebase command to acknowledge when the cycle ends
 String        trayLastCommandId   = "";
 unsigned long trayOpenedMs        = 0;
@@ -1471,6 +1472,11 @@ void updateFirebaseRemoteControl() {
   if (millis() - lastFirebasePollMs < FIREBASE_POLL_MS) return;
   lastFirebasePollMs = millis();
 
+  if (trayConfigPushPending) {
+    String body = String("{\"trayCloseMinutes\":") + trayCloseAfterMin
+                + ",\"updatedAt\":{\".sv\":\"timestamp\"}}";
+    if (firebasePatch(userPath("/device_status/remote_config.json"), body)) trayConfigPushPending = false;
+  }
   pollDeviceStatus();
   flushPendingRecords();
 }
@@ -1650,7 +1656,7 @@ void updateFeeder() {
       // Open the tray after every feed that ends, whether or not the target weight was reached
       // (hopper empty, timed out, or scale lost), so the pet can always reach the food.
       trayAutoOpenPending = true;
-      trayAutoCloseWanted = feedIsScheduled;   // scheduled feeds close the tray on their own later
+      trayAutoCloseWanted = true;
       trayAutoOpenAtMs    = millis() + TRAY_AUTO_OPEN_DELAY_MS;
       Serial.println(String(targetReached ? "[Tray] Target weight reached" : "[Tray] Feed ended without reaching the target")
                      + " - tray opens in " + String(TRAY_AUTO_OPEN_DELAY_MS) + " ms.");
@@ -1963,7 +1969,7 @@ void updateTrayAutoOpen() {
   trayAutoCloseWanted = false;
   if (rc == TRAY_OK) {
     trayAutoCloseArmed = autoClose;   // the countdown starts once the tray is fully open
-    if (autoClose) Serial.println("[Tray] Auto-opened after scheduled feeding; closes after " + String(trayCloseAfterMin) + " min.");
+    if (autoClose) Serial.println("[Tray] Auto-opened after feeding; closes after " + String(trayCloseAfterMin) + " min.");
     else           Serial.println("[Tray] Auto-opened after feeding; stays open until closed.");
   } else if (rc == TRAY_ERR_BUSY && autoClose && trayState == TRAY_HOLDING) {
     trayAutoCloseArmed = true;        // tray was still open from before: restart the countdown
@@ -2314,6 +2320,7 @@ void handleTrayConfig() {
     trayCloseAfterMin = (uint16_t)minutes;
     saveTrayCloseMinutes();
     trayStatusDirty = true;
+    trayConfigPushPending = true;
     Serial.println("[Tray] Auto-close time set to " + String(trayCloseAfterMin) + " min.");
   }
   server.send(200, "application/json",
