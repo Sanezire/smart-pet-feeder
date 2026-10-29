@@ -1373,6 +1373,8 @@ public class FirebaseService {
                 a.id, when, when, grams, grams, 0f, 0f,
                 FeedingRecord.Status.COMPLETED, false,
                 new SimpleDateFormat("MM/dd", Locale.US).format(new Date(when)));
+        manual.setFeedType("manual");
+        manual.setTargetWeight(grams);
         manual.setScheduledTimeDisplay(epochToTime(when));
         manual.setActualTimeDisplay(epochToTime(when));
 

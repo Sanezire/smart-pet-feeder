@@ -29,6 +29,10 @@ public class FeedingRecord {
     private long consumptionTime;
     private long eatWindowMs;
     private boolean bowlAlreadyFull;
+    private String feedType;                 // "manual" or "scheduled"
+    private float targetWeight;              // target bowl weight for this feed
+    private boolean measuredAfterTrayClose;  // consumed/remaining were read after the tray closed
+    private float weightAfterTrayClose;
     private String status;
     private boolean anomalyFlag;
     private String date;
@@ -96,6 +100,33 @@ public class FeedingRecord {
     public void setConsumptionRecorded(boolean v) { this.consumptionRecorded = v; }
     public long getConsumptionTime() { return consumptionTime; }
     public void setConsumptionTime(long v) { this.consumptionTime = v; }
+    public String getFeedType() { return feedType; }
+    public void setFeedType(String v) { this.feedType = v; }
+    public float getTargetWeight() { return targetWeight; }
+    public void setTargetWeight(float v) { this.targetWeight = v; }
+    public boolean isMeasuredAfterTrayClose() { return measuredAfterTrayClose; }
+    public void setMeasuredAfterTrayClose(boolean v) { this.measuredAfterTrayClose = v; }
+    public float getWeightAfterTrayClose() { return weightAfterTrayClose; }
+    public void setWeightAfterTrayClose(float v) { this.weightAfterTrayClose = v; }
+
+    @Exclude
+    public boolean isManualFeed() {
+        if (feedType != null) return "manual".equals(feedType);
+        return feedingId != null && feedingId.startsWith("manual_");
+    }
+
+    /** Target weight for this feed, for both manual and scheduled records. */
+    @Exclude
+    public float getDisplayTarget() {
+        return targetWeight > 0f ? targetWeight : scheduledPortion;
+    }
+
+    /** True once the feeder has reported what it actually dispensed (not the app's placeholder). */
+    @Exclude
+    public boolean isDispensedKnown() {
+        return weightAfterDispense > 0f || bowlAlreadyFull || weightRecorded;
+    }
+
     public boolean isBowlAlreadyFull() { return bowlAlreadyFull; }
     public void setBowlAlreadyFull(boolean v) { this.bowlAlreadyFull = v; }
     public long getEatWindowMs() { return eatWindowMs; }
@@ -178,12 +209,16 @@ public class FeedingRecord {
 
     @Exclude
     public float getComparisonWeight() {
-        return weightRecorded ? measuredWeight : dispensedWeight;
+        if (weightRecorded) return measuredWeight;
+        // Manual feeds: the bowl weight right after dispensing is what the target is compared with.
+        if (weightAfterDispense > 0f) return weightAfterDispense;
+        return dispensedWeight;
     }
 
     @Exclude
     public float getComparisonTarget() {
-        return weightRecorded && recommendedWeight > 0 ? recommendedWeight : scheduledPortion;
+        if (weightRecorded && recommendedWeight > 0) return recommendedWeight;
+        return targetWeight > 0f ? targetWeight : scheduledPortion;
     }
 
     @Exclude

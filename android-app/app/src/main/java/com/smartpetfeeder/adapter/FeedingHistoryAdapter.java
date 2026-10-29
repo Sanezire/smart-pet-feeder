@@ -16,6 +16,7 @@ import com.smartpetfeeder.model.FeedingRecord;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 
 public class FeedingHistoryAdapter extends RecyclerView.Adapter<FeedingHistoryAdapter.ViewHolder> {
 
@@ -69,6 +70,9 @@ public class FeedingHistoryAdapter extends RecyclerView.Adapter<FeedingHistoryAd
                         && Float.compare(o.getRemainingWeight(), n.getRemainingWeight()) == 0
                         && Float.compare(o.getWeightAfterDispense(), n.getWeightAfterDispense()) == 0
                         && Float.compare(o.getWeightBeforeFeed(), n.getWeightBeforeFeed()) == 0
+                        && Float.compare(o.getTargetWeight(), n.getTargetWeight()) == 0
+                        && o.isManualFeed() == n.isManualFeed()
+                        && o.isMeasuredAfterTrayClose() == n.isMeasuredAfterTrayClose()
                         && o.isBowlAlreadyFull() == n.isBowlAlreadyFull()
                         && o.isConsumptionRecorded() == n.isConsumptionRecorded()
                         && o.isConsumptionPending() == n.isConsumptionPending()
@@ -128,49 +132,59 @@ public class FeedingHistoryAdapter extends RecyclerView.Adapter<FeedingHistoryAd
             });
         }
 
+        /** Dispensed / Consumed / Remaining lines, identical for manual and scheduled feeds. */
+        private String buildBreakdown(FeedingRecord r) {
+            String dispensed;
+            if (r.isBowlAlreadyFull()) {
+                dispensed = "Dispensed: 0.0g (bowl already full)";
+            } else if (r.isDispensedKnown()) {
+                dispensed = String.format(Locale.US, "Dispensed: %.1fg  (bowl %.1fg to %.1fg)",
+                        r.getDispensedWeight(), r.getWeightBeforeFeed(), r.getWeightAfterDispense());
+            } else {
+                dispensed = "Dispensed: waiting for feeder data";
+            }
+
+            String consumed;
+            String remaining;
+            if (!r.isDispensedKnown()) {
+                consumed = "Consumed: --";
+                remaining = "Remaining: --";
+            } else if (r.isConsumptionRecorded()) {
+                consumed = String.format(Locale.US, "Consumed: %.1fg%s", r.getDisplayConsumedWeight(),
+                        r.isMeasuredAfterTrayClose() ? "  (measured after the tray closed)" : "");
+                remaining = String.format(Locale.US, "Remaining: %.1fg", r.getRemainingWeight());
+            } else {
+                consumed = String.format(Locale.US,
+                        "Consumed: pending, measured when the tray closes (so far %.1fg)",
+                        r.getDisplayConsumedWeight());
+                remaining = String.format(Locale.US, "Remaining: %.1fg (live)", r.getRemainingWeight());
+            }
+            return dispensed + "\n" + consumed + "\n" + remaining;
+        }
+
         void bind(FeedingRecord record) {
             String sched = record.getScheduledTimeDisplay() != null
                     ? record.getScheduledTimeDisplay() : "--:--";
             String actual = record.getActualTimeDisplay() != null
                     ? record.getActualTimeDisplay() : "--:--";
 
-            tvScheduledTime.setText("Scheduled: " + sched);
-
             boolean isMissed = record.getStatusEnum() == FeedingRecord.Status.MISSED;
 
+            // Same layout for manual and scheduled feeds.
+            tvScheduledTime.setText(record.isManualFeed() ? "Manual feed" : "Scheduled: " + sched);
+            tvActualTime.setText("Actual: " + (isMissed ? "--:--" : actual));
+            tvTargetWeight.setText(String.format(Locale.US, "Target: %.1fg", record.getDisplayTarget()));
+
             if (isMissed) {
-                tvActualTime.setText("Actual: --:--");
-                tvDispensedWeight.setText("Dispensed: --");
+                tvDispensedWeight.setText("Dispensed: --\nConsumed: --\nRemaining: --");
                 tvDeviation.setVisibility(View.GONE);
             } else {
-                tvActualTime.setText("Actual: " + actual);
-                if (record.hasConsumptionTracking()) {
-                    String first = record.isBowlAlreadyFull()
-                            ? String.format("Bowl before: %.1fg  |  Bowl already full - nothing dispensed",
-                                    record.getWeightBeforeFeed())
-                            : String.format("Bowl before: %.1fg  |  Dispensed (top-up): %.1fg",
-                                    record.getWeightBeforeFeed(), record.getDispensedWeight());
-                    String last = record.isConsumptionRecorded()
-                            ? String.format("Consumed: %.1fg  |  Remaining: %.1fg",
-                                    record.getDisplayConsumedWeight(), record.getRemainingWeight())
-                            : String.format("Consumed: %.1fg  |  Remaining (live): %.1fg  |  Final check ~%d min",
-                                    record.getDisplayConsumedWeight(), record.getRemainingWeight(),
-                                    record.getEatWindowMinutes());
-                    tvDispensedWeight.setText(first
-                            + String.format("\nAfter dispensing: %.1fg\n", record.getWeightAfterDispense())
-                            + last);
-                } else {
-                    tvDispensedWeight.setText(
-                            String.format("Dispensed: %.1fg  |  Consumed: %.1fg  |  Remaining: %.1fg",
-                                    record.getDispensedWeight(),
-                                    record.getDisplayConsumedWeight(),
-                                    record.getRemainingWeight()));
-                }
+                tvDispensedWeight.setText(buildBreakdown(record));
 
                 double deviation = record.getDeviationPercentage();
                 tvDeviation.setVisibility(View.VISIBLE);
                 if (Math.abs(deviation) > 1.0) {
-                    tvDeviation.setText(String.format("Deviation: %+.1f%%", deviation));
+                    tvDeviation.setText(String.format(Locale.US, "Deviation: %+.1f%%", deviation));
                     tvDeviation.setTextColor(ContextCompat.getColor(itemView.getContext(),
                             deviation > 0 ? R.color.colorDeviationHigh : R.color.colorDeviationLow));
                 } else {
@@ -179,9 +193,6 @@ public class FeedingHistoryAdapter extends RecyclerView.Adapter<FeedingHistoryAd
                             itemView.getContext(), R.color.colorTextSecondary));
                 }
             }
-
-            tvTargetWeight.setText(
-                    String.format("Target: %.1fg", record.getScheduledPortion()));
 
             switch (record.getStatusEnum()) {
                 case COMPLETED:

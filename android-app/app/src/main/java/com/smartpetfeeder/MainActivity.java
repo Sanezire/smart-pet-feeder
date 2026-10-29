@@ -1956,9 +1956,14 @@ public class MainActivity extends AppCompatActivity implements FirebaseService.D
             if (notified.contains(r.getFeedingId())) continue;
             long doneAt = r.getConsumptionTime() > 0L ? r.getConsumptionTime() : r.getActualTime();
             if (doneAt <= 0L || now - doneAt > FEED_FINAL_NOTIFY_MAX_AGE_MS) continue;
-            PetFeederMessagingService.showFeedingFinal(this, r.getFeedingId(), "Feeding complete",
-                    String.format(Locale.US, "Target %.1fg  |  Consumed %.1fg  |  Remaining %.1fg",
-                            r.getScheduledPortion(), r.getDisplayConsumedWeight(), r.getRemainingWeight()));
+            String dispensed = r.isDispensedKnown()
+                    ? String.format(Locale.US, "%.1f g", r.getDispensedWeight()) : "n/a";
+            PetFeederMessagingService.showFeedingFinal(this, r.getFeedingId(),
+                    r.isManualFeed() ? "Manual feeding complete" : "Scheduled feeding complete",
+                    String.format(Locale.US,
+                            "Target: %.1f g\nDispensed: %s\nConsumed: %.1f g\nRemaining: %.1f g",
+                            r.getDisplayTarget(), dispensed,
+                            r.getDisplayConsumedWeight(), r.getRemainingWeight()));
             notified.add(r.getFeedingId());
             changed = true;
         }
