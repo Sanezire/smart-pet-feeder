@@ -2222,7 +2222,6 @@ void handleCommand() {
   if (command == "close_gate") {
     feederServo.write(SERVO_HOME_ANGLE);
     isFeeding = false;
-    feedGateClosePending = false;
     server.send(200, "application/json",
       "{\"status\":\"ok\",\"message\":\"Food gate closed\"}");
     return;
