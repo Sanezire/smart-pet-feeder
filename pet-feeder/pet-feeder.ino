@@ -132,6 +132,7 @@
 #define SCALE_RETRY_MS            10000UL
 #define STABLE_SPREAD_G           1.0f
 #define BASELINE_STABLE_MAX_MS    8000UL
+#define TRAY_CLOSE_SETTLE_MS      2000UL  // let the scale settle after the tray closes before measuring consumption
 #define EAT_SAMPLE_MS             1000UL
 #define EAT_NOISE_G               1.5f
 #define EAT_REFILL_G              3.0f
@@ -192,6 +193,9 @@ unsigned long trayOpenSecs        = 0;      // how long the tray was open in the
 bool          trayEventPending    = false;  // closed-tray event not yet logged to the cloud
 bool          trayClosedReportPending = false;  // last-closed time not yet sent in a heartbeat
 time_t        trayClosedEpoch     = 0;      // wall-clock close time, 0 if the clock was not synced
+bool          eatTrayClosePending = false;  // tray just closed: take the final consumption reading
+unsigned long eatTrayCloseAtMs    = 0;
+bool          eatFinalByTray      = false;  // the last finalized record was measured after the tray closed
 bool          apAlwaysOn          = false;  // keep PetFeeder_Setup up even while connected to a router
 bool          trayStatusDirty     = false;  // tray open/closed state not yet sent to the cloud
 String        trayRemoteCommandId = "";   // Firebase command to acknowledge when the cycle ends
@@ -1122,6 +1126,8 @@ void queueFeedingRecord(const String& id, const String& json) {
 
 void startEatCheck(const String& id, float afterDispenseGrams) {
   if (eatCheck.active) completeEatCheck();
+  eatTrayClosePending    = false;
+  eatFinalByTray         = false;
   eatCheck.active        = true;
   eatCheck.id            = id;
   eatCheck.afterDispense = afterDispenseGrams > 0.0f ? afterDispenseGrams : 0.0f;
@@ -1158,7 +1164,9 @@ void trackManualFeedRecord() {
       ",\"remainingWeight\":" + String(after, 1) +
       ",\"consumedWeight\":0.0"
       ",\"consumptionRecorded\":false"
-      ",\"eatWindowMs\":" + String(EAT_WINDOW_MS);
+      ",\"eatWindowMs\":" + String(EAT_WINDOW_MS) +
+      ",\"feedType\":\"manual\"";
+  if (feedTargetGrams > 0.0f) json += ",\"targetWeight\":" + String(feedTargetGrams, 1);
   if (feedWeightMode) {
     float added = feedBowlFull ? 0.0f : after - feedStartWeight;
     if (added < 0.0f) added = 0.0f;
@@ -1226,7 +1234,9 @@ void completeEatCheck() {
   String json = "{\"weightAfterEating\":" + String(after, 1) +
       ",\"consumedWeight\":" + String(consumed, 1) +
       ",\"remainingWeight\":" + String(after, 1) +
-      ",\"consumptionRecorded\":true";
+      ",\"consumptionRecorded\":true"
+      ",\"measuredAfterTrayClose\":" + String(eatFinalByTray ? "true" : "false");
+  if (eatFinalByTray) json += ",\"weightAfterTrayClose\":" + String(after, 1);
   if (isClockSynced()) json += ",\"consumptionTime\":" + String((uint32_t)time(nullptr)) + "000";
   json += "}";
   queueFeedingRecord(eatCheck.id, json);
@@ -1237,6 +1247,27 @@ void completeEatCheck() {
 }
 
 void updateEatCheck() {
+  // The tray just closed: take the final consumption / remaining reading (the weight on the scale now).
+  if (eatTrayClosePending) {
+    if (!eatCheck.active || isFeeding) {
+      eatTrayClosePending = false;                 // nothing to measure, or a new feed started first
+    } else if ((long)(millis() - eatTrayCloseAtMs) >= 0) {
+      bool settled = hasValidLiveWeight() && weightStableNow();
+      bool gaveUp  = (long)(millis() - (eatTrayCloseAtMs + BASELINE_STABLE_MAX_MS)) >= 0;
+      if (settled || gaveUp) {
+        eatTrayClosePending = false;
+        if (hasValidLiveWeight()) {
+          eatFinalByTray = true;
+          completeEatCheck();
+          eatFinalByTray = false;
+          return;
+        }
+        // no valid weight even after waiting: fall back to the normal retry logic below
+      } else {
+        return;                                    // still waiting for the scale to settle
+      }
+    }
+  }
   if (!eatCheck.active || isFeeding) return;
   if (hasEnabledSchedule() || (long)(millis() - eatCheck.dueMs) < 0) {
     if ((long)(millis() - eatCheck.nextSampleMs) >= 0) {
@@ -1297,6 +1328,8 @@ void finalizeScheduledFeedRecord() {
       ",\"scheduledTime\":" + String(feedSlotEpochSec) + "000"
       ",\"actualTime\":" + String(feedStartEpochSec) + "000"
       ",\"scheduledPortion\":" + String(feedTargetGrams, 1) +
+      ",\"targetWeight\":" + String(feedTargetGrams, 1) +
+      ",\"feedType\":\"scheduled\""
       ",\"dispensedWeight\":" + String(dispensed, 1) +
       ",\"measuredWeight\":" + String(feedMeasuredWeight, 1) +
       ",\"recommendedWeight\":" + String(feedTargetGrams, 1) +
@@ -1807,6 +1840,10 @@ void updateTray() {
   trayEventPending        = true;
   trayClosedReportPending = true;
   Serial.println("[Tray] Cycle complete - tray closed, servo stopped.");
+  if (eatCheck.active) {
+    eatTrayClosePending = true;
+    eatTrayCloseAtMs    = millis() + TRAY_CLOSE_SETTLE_MS;
+  }
   if (trayRemoteCommandId.length() > 0) {
     if (trayRemoteCommandId == lastProcessedRemoteCommandId
         && WiFi.status() == WL_CONNECTED && deviceUid.length() > 0) {
