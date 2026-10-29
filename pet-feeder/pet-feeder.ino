@@ -117,6 +117,9 @@
 #define WIFI_RETRY_INITIAL_MS     2000UL
 #define WIFI_RETRY_MAX_MS         30000UL
 #define FIREBASE_HTTP_TIMEOUT_MS  5000
+#define FIREBASE_MIN_FREE_HEAP    10000UL  // below this a secure (TLS) connection cannot open: skip instead of failing
+#define FIREBASE_MIN_FREE_BLOCK   6000UL   // largest contiguous free block needed for the TLS buffers
+#define HEAP_LOG_MS               60000UL  // periodic heap line on the serial monitor
 #define FEED_SETTLE_MS            1500UL
 #define PORTION_LOW_RATIO         0.80f
 #define PORTION_HIGH_RATIO        1.20f
@@ -193,6 +196,9 @@ unsigned long trayOpenSecs        = 0;      // how long the tray was open in the
 bool          trayEventPending    = false;  // closed-tray event not yet logged to the cloud
 bool          trayClosedReportPending = false;  // last-closed time not yet sent in a heartbeat
 time_t        trayClosedEpoch     = 0;      // wall-clock close time, 0 if the clock was not synced
+uint32_t      minFreeHeapSeen     = 0xFFFFFFFFUL;  // lowest free heap observed since boot
+unsigned long lastHeapLogMs       = 0;
+unsigned long lastHeapSkipLogMs   = 0;
 bool          eatTrayClosePending = false;  // tray just closed: take the final consumption reading
 unsigned long eatTrayCloseAtMs    = 0;
 bool          eatFinalByTray      = false;  // the last finalized record was measured after the tray closed
@@ -775,8 +781,33 @@ String userPath(const String& sub) {
   return "/users/" + deviceUid + sub;
 }
 
+void noteHeap() {
+  uint32_t f = ESP.getFreeHeap();
+  if (f < minFreeHeapSeen) minFreeHeapSeen = f;
+}
+
+String heapSummary() {
+  noteHeap();
+  uint32_t f = ESP.getFreeHeap();
+  uint32_t b = ESP.getMaxFreeBlockSize();
+  int frag = f > 0 ? 100 - (int)(((uint64_t)b * 100ULL) / f) : 0;
+  return "free=" + String(f) + " maxBlock=" + String(b) + " frag=" + String(frag)
+         + "% minSeen=" + String(minFreeHeapSeen);
+}
+
+bool firebaseHeapOk(const char* what) {
+  noteHeap();
+  if (ESP.getFreeHeap() >= FIREBASE_MIN_FREE_HEAP && ESP.getMaxFreeBlockSize() >= FIREBASE_MIN_FREE_BLOCK) return true;
+  if (millis() - lastHeapSkipLogMs >= 10000UL) {
+    lastHeapSkipLogMs = millis();
+    Serial.println(String("[Heap] Low memory - skipping Firebase ") + what + " (" + heapSummary() + ")");
+  }
+  return false;
+}
+
 String firebaseGet(const String& path) {
   static BearSSL::WiFiClientSecure client;
+  if (!firebaseHeapOk("GET")) { client.stop(); return ""; }   // drop any kept-alive TLS session to free memory
   client.setInsecure();
   client.setBufferSizes(1024, 512);
   client.setTimeout(FIREBASE_HTTP_TIMEOUT_MS);
@@ -787,11 +818,13 @@ String firebaseGet(const String& path) {
   int code = http.GET();
   String body = (code > 0) ? http.getString() : "";
   http.end();
+  if (code <= 0) client.stop();                                // failed connection: release its buffers
   return (code >= 200 && code < 300) ? body : "";
 }
 
 bool firebasePatch(const String& path, const String& payload) {
   static BearSSL::WiFiClientSecure client;
+  if (!firebaseHeapOk("PATCH")) { client.stop(); return false; }   // drop any kept-alive TLS session to free memory
   client.setInsecure();
   client.setBufferSizes(1024, 512);
   client.setTimeout(FIREBASE_HTTP_TIMEOUT_MS);
@@ -802,6 +835,7 @@ bool firebasePatch(const String& path, const String& payload) {
   http.addHeader("Content-Type", "application/json");
   int code = http.sendRequest("PATCH", payload);
   http.end();
+  if (code <= 0) client.stop();                                    // failed connection: release its buffers
   if (code < 200 || code >= 300) {
     IPAddress dnsIp;
     bool dnsOk = WiFi.hostByName("smart-ped-feeder-default-rtdb.firebaseio.com", dnsIp);
@@ -1515,6 +1549,7 @@ void triggerFeed(float portionGrams, bool scheduled) {
   }
   Serial.println("[Feeder] Dispensing food...");
   feederServo.write(SERVO_SWEEP_ANGLE);
+  Serial.println("[Heap] feed start " + heapSummary());
   isFeeding      = true;
   feedingStartMs = millis();
   feedLastLogMs  = millis();
@@ -1557,6 +1592,7 @@ void updateFeeder() {
       feederServo.write(SERVO_HOME_ANGLE);
       isFeeding = false;
       Serial.println("[Feeder] Servo returned home.");
+      Serial.println("[Heap] feed end " + heapSummary());
       // Open the tray after every feed that ends, whether or not the target weight was reached
       // (hopper empty, timed out, or scale lost), so the pet can always reach the food.
       trayAutoOpenPending = true;
@@ -2022,6 +2058,9 @@ String buildStatusJson() {
   doc["account_hash"]   = deviceUid.length() ? hashString(deviceUid) : 0;
   doc["time_synced"] = isClockSynced();
   doc["ap_always_on"] = apAlwaysOn;
+  doc["free_heap"]      = ESP.getFreeHeap();
+  doc["max_free_block"] = ESP.getMaxFreeBlockSize();
+  doc["min_free_heap"]  = minFreeHeapSeen;
   doc["local_hour"] = currentLocalHour;
   doc["local_minute"] = currentLocalMinute;
   doc["local_wday"] = currentLocalWday;
@@ -2583,6 +2622,7 @@ void setupWebServer() {
   server.collectHeaders("X-Feeder-Restart");
   server.begin();
   Serial.println("[HTTP] Server started on port 80");
+  Serial.println("[Heap] boot " + heapSummary());
 }
 
 void setup() {
@@ -2625,6 +2665,11 @@ void setup() {
 }
 
 void loop() {
+  noteHeap();
+  if (millis() - lastHeapLogMs >= HEAP_LOG_MS) {
+    lastHeapLogMs = millis();
+    Serial.println("[Heap] " + heapSummary());
+  }
   reconcileModeWithWifi();
 
   if (currentMode == MODE_CONNECTING && !finalizeStationSwitchPending) {
