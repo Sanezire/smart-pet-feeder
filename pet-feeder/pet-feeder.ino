@@ -120,6 +120,8 @@
 #define FIREBASE_MIN_FREE_HEAP    10000UL  // below this a secure (TLS) connection cannot open: skip instead of failing
 #define FIREBASE_MIN_FREE_BLOCK   6000UL   // largest contiguous free block needed for the TLS buffers
 #define HEAP_LOG_MS               60000UL  // periodic heap line on the serial monitor
+#define LOCAL_CLIENT_ACTIVE_MS    10000UL  // the app counts as "reading locally" if it polled /status this recently
+#define TRAY_PRE_OPEN_SAMPLE_MS   300UL    // take the after-dispense weight this long before the tray opens
 #define FEED_SETTLE_MS            1500UL
 #define PORTION_LOW_RATIO         0.80f
 #define PORTION_HIGH_RATIO        1.20f
@@ -196,6 +198,8 @@ unsigned long trayOpenSecs        = 0;      // how long the tray was open in the
 bool          trayEventPending    = false;  // closed-tray event not yet logged to the cloud
 bool          trayClosedReportPending = false;  // last-closed time not yet sent in a heartbeat
 time_t        trayClosedEpoch     = 0;      // wall-clock close time, 0 if the clock was not synced
+unsigned long lastLocalStatusMs   = 0;      // last time a local client (the app) read /status
+bool          localStatusSeen     = false;
 uint32_t      minFreeHeapSeen     = 0xFFFFFFFFUL;  // lowest free heap observed since boot
 unsigned long lastHeapLogMs       = 0;
 unsigned long lastHeapSkipLogMs   = 0;
@@ -847,8 +851,15 @@ bool firebasePatch(const String& path, const String& payload) {
   return code >= 200 && code < 300;
 }
 
+// True while the app is reading the live weight straight from the feeder over the local network.
+// Firebase live-weight pushes pause meanwhile; away from home nothing polls /status and they resume.
+bool localClientActive() {
+  return localStatusSeen && (millis() - lastLocalStatusMs) < LOCAL_CLIENT_ACTIVE_MS;
+}
+
 bool liveWeightMoved() {
   if (!scaleAvailable) return false;
+  if (localClientActive()) return false;
   float w = currentWeightGrams > 0.0f ? currentWeightGrams : 0.0f;
   return fabs(w - lastPushedWeight) >= WEIGHT_PUSH_DELTA_G;
 }
@@ -878,6 +889,7 @@ bool pushLiveWeightToFirebase(bool force) {
   bool feedLiveEnd = !feedLiveNow && liveFeedEndPending;
   bool feedLiveDirty = liveFeedDirty || feedLiveEnd;
   if (!force) {
+    if (localClientActive() && !feedLiveEnd) return false;   // the app already has it locally
     bool changed = fabs(liveWeight - lastPushedWeight) >= WEIGHT_PUSH_DELTA_G || feedLiveDirty;
     bool expired = nowMs - lastLiveWeightPushMs >= LIVE_WEIGHT_MAX_AGE_MS;
     if (nowMs - lastLiveWeightPushMs < LIVE_WEIGHT_PUSH_MS) return false;
@@ -1602,7 +1614,9 @@ void updateFeeder() {
                      + " - tray opens in " + String(TRAY_AUTO_OPEN_DELAY_MS) + " ms.");
       if (feedIsScheduled || feedRecordId.length() > 0) {
         feedFinalizePending = true;
-        feedFinalizeAtMs    = millis() + FEED_SETTLE_MS;
+        // Take the "after dispensing" weight just before the tray opens, once the food has stopped falling.
+        feedFinalizeAtMs    = millis() + (TRAY_AUTO_OPEN_DELAY_MS > TRAY_PRE_OPEN_SAMPLE_MS
+                                          ? TRAY_AUTO_OPEN_DELAY_MS - TRAY_PRE_OPEN_SAMPLE_MS : 0UL);
       } else {
         Serial.println("[Record] Feed NOT tracked - started without a feeding record (e.g. /feed-now or no app command id).");
       }
@@ -1610,7 +1624,12 @@ void updateFeeder() {
   }
 
   if (feedFinalizePending && (long)(millis() - feedFinalizeAtMs) >= 0) {
-    if (!weightStableNow() && (long)(millis() - (feedFinalizeAtMs + BASELINE_STABLE_MAX_MS)) < 0) return;
+    // Wait for a steady reading, but never past the moment the tray opens (it would disturb the scale).
+    bool beforeTrayOpens = trayAutoOpenPending && (long)(millis() - (trayAutoOpenAtMs - 20UL)) < 0;
+    bool waitMore = beforeTrayOpens
+        ? !weightStableNow()
+        : (!weightStableNow() && (long)(millis() - (feedFinalizeAtMs + BASELINE_STABLE_MAX_MS)) < 0);
+    if (waitMore) return;
     feedFinalizePending = false;
     if (feedIsScheduled) finalizeScheduledFeedRecord();
     else                 trackManualFeedRecord();
@@ -2061,6 +2080,14 @@ String buildStatusJson() {
   doc["free_heap"]      = ESP.getFreeHeap();
   doc["max_free_block"] = ESP.getMaxFreeBlockSize();
   doc["min_free_heap"]  = minFreeHeapSeen;
+  doc["live_feeding"]   = eatCheck.active;
+  if (eatCheck.active) {
+    doc["live_feeding_id"]  = eatCheck.id;
+    doc["live_target"]      = eatCheck.target;
+    doc["live_consumed"]    = eatCheck.consumed;
+    doc["live_remaining"]   = eatCheck.lastRemaining;
+    doc["live_bowl_removed"] = eatCheck.bowlRemoved;
+  }
   doc["local_hour"] = currentLocalHour;
   doc["local_minute"] = currentLocalMinute;
   doc["local_wday"] = currentLocalWday;
@@ -2177,6 +2204,8 @@ void handleProvisioningSession() {
 }
 
 void handleStatus() {
+  lastLocalStatusMs = millis();
+  localStatusSeen   = true;
   addCORSHeaders();
   server.send(200, "application/json", buildStatusJson());
 }

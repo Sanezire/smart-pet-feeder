@@ -38,6 +38,7 @@ import com.smartpetfeeder.auth.LoginActivity;
 import com.smartpetfeeder.model.AppNotificationItem;
 import com.smartpetfeeder.wifi.DeviceDiscovery;
 import com.smartpetfeeder.wifi.EspApiClient;
+import com.smartpetfeeder.wifi.LocalLiveWeightPoller;
 import com.smartpetfeeder.wifi.WiFiConfigActivity;
 import com.smartpetfeeder.wifi.SettingsActivity;
 
@@ -195,6 +196,9 @@ public class MainActivity extends AppCompatActivity implements FirebaseService.D
     private LiveFeedingStats liveFeeding;
     private View     cardLiveFeeding;
     private TextView tvLiveFeedTarget, tvLiveFeedConsumed, tvLiveFeedRemaining, tvLiveFeedMeta;
+    private static final long LOCAL_PRIORITY_MS = 6_000L;   // a local reading beats Firebase for this long
+    private LocalLiveWeightPoller localLivePoller;
+    private volatile long localLiveAt = 0L;
     private final Handler liveWeightHandler = new Handler();
     private final Runnable liveWeightTick = new Runnable() {
         @Override public void run() {
@@ -248,8 +252,27 @@ public class MainActivity extends AppCompatActivity implements FirebaseService.D
 
         firebaseService = new FirebaseService(getApplicationContext());
         firebaseService.setListener(this);
-        firebaseService.setLiveWeightListener(this::onLiveWeightUpdated);
-        firebaseService.setLiveFeedingListener(this::onLiveFeedingUpdated);
+        // Live weight: read straight from the feeder when it is reachable, Firebase otherwise.
+        firebaseService.setLiveWeightListener((available, grams, updatedAt) -> {
+            if (System.currentTimeMillis() - localLiveAt < LOCAL_PRIORITY_MS) return;
+            onLiveWeightUpdated(available, grams, updatedAt);
+        });
+        firebaseService.setLiveFeedingListener(stats -> {
+            if (System.currentTimeMillis() - localLiveAt < LOCAL_PRIORITY_MS) return;
+            onLiveFeedingUpdated(stats);
+        });
+        localLivePoller = new LocalLiveWeightPoller(deviceDiscovery, new LocalLiveWeightPoller.Listener() {
+            @Override public void onWeight(boolean available, float grams) {
+                localLiveAt = System.currentTimeMillis();
+                onLiveWeightUpdated(available, grams, localLiveAt);
+            }
+
+            @Override public void onLiveFeeding(boolean active, String feedingId, float target,
+                                                float consumed, float remaining, boolean bowlRemoved) {
+                onLiveFeedingUpdated(new LiveFeedingStats(active, feedingId, target,
+                        consumed, remaining, bowlRemoved));
+            }
+        });
         firebaseService.setSyncListener(syncListener);
         firebaseService.setPetProfileListener(this::onPetProfileChanged);
         firebaseService.setFeederStatusListener(this::onFeederStatusChanged);
@@ -294,10 +317,12 @@ public class MainActivity extends AppCompatActivity implements FirebaseService.D
     protected void onResume() {
         super.onResume();
         updateLiveWeightTicker();
+        if (localLivePoller != null) localLivePoller.start();
     }
 
     @Override
     protected void onPause() {
+        if (localLivePoller != null) localLivePoller.stop();
         stopLiveWeightTicker();
         super.onPause();
     }
@@ -328,6 +353,7 @@ public class MainActivity extends AppCompatActivity implements FirebaseService.D
         syncTickHandler.removeCallbacksAndMessages(null);
         liveWeightHandler.removeCallbacksAndMessages(null);
         timeoutHandler.removeCallbacksAndMessages(null);
+        if (localLivePoller != null) localLivePoller.shutdown();
         if (espApiClient != null) espApiClient.shutdown();
         if (deviceDiscovery != null) deviceDiscovery.shutdown();
     }
