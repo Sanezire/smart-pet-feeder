@@ -93,7 +93,7 @@
 #define TRAY_HOLD_MS              5000UL
 #define TRAY_CLOSE_MS             6000UL
 #define TRAY_SETTLE_MS            400UL
-#define TRAY_AUTO_OPEN_DELAY_MS   3000UL // wait after target weight is reached before the tray opens
+#define TRAY_AUTO_OPEN_DELAY_MS   5000UL // wait after target weight is reached before the tray opens
 #define TRAY_COOLDOWN_MS          2000UL
 #define TRAY_OK                   0
 #define TRAY_ERR_BUSY             1
