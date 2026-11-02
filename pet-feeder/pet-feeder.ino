@@ -1985,6 +1985,33 @@ void initServoPinSafe() {
   pinMode(PIN_SERVO, OUTPUT);
 }
 
+// The HX711 library's tare() waits forever for the chip. With no HX711 wired (or a loose DT wire)
+// the DT pin floats, can read "ready" once, and tare() then never returns: loop() stops, so the
+// web server and the setup portal stop answering while the hotspot stays visible.
+// These versions give up after a timeout instead. A real HX711 holds DT low until its sample is
+// read; a floating pin flickers, so "ready" must be seen 3 times in a row before the library's own
+// read() (which waits for ready again, with no timeout) is allowed to run.
+static bool hxWaitReady(unsigned long timeoutMs) {
+  unsigned long t0 = millis();
+  int stableReady = 0;
+  while (millis() - t0 < timeoutMs) {
+    if (scale.is_ready()) { if (++stableReady >= 3) return true; }
+    else stableReady = 0;
+    delay(1);
+  }
+  return false;
+}
+
+static bool hxTare(int samples) {
+  double sum = 0.0;
+  for (int i = 0; i < samples; i++) {
+    if (!hxWaitReady(300)) return false;
+    sum += (double)scale.read();
+  }
+  scale.set_offset((long)(sum / samples));
+  return true;
+}
+
 void setupScale() {
   Serial.println();
   Serial.println("======================================");
@@ -1993,7 +2020,7 @@ void setupScale() {
 
   scale.begin(HX711_DOUT, HX711_SCK);
 
-  if (!scale.is_ready()) {
+  if (!hxWaitReady(500)) {
     Serial.println("ERROR!");
     Serial.println("HX711 is NOT responding.");
     Serial.println();
@@ -2013,7 +2040,11 @@ void setupScale() {
 
   scale.set_scale(CALIBRATION_FACTOR);
 
-  scale.tare(5);
+  if (!hxTare(5)) {
+    Serial.println("[HX711] Stopped answering while zeroing - weighing disabled, will retry.");
+    scaleAvailable = false;
+    return;
+  }
 
   Serial.println();
   Serial.println("TARE COMPLETE! Scale should read 0 g / 0.000 kg");
@@ -2032,16 +2063,17 @@ void updateScale() {
     lastScaleRetryMs = millis();
     if (scale.is_ready()) {
       scale.set_scale(CALIBRATION_FACTOR);
-      scale.tare(10);
-      scaleAvailable     = true;
-      weightSkipLogged   = false;
-      lastWeightSampleMs = millis();
-      Serial.println("[HX711] Scale came online, tared.");
+      if (hxTare(10)) {
+        scaleAvailable     = true;
+        weightSkipLogged   = false;
+        lastWeightSampleMs = millis();
+        Serial.println("[HX711] Scale came online, tared.");
+      }
     }
     return;
   }
 
-  if (scale.is_ready()) {
+  if (scale.is_ready() && hxWaitReady(20)) {
     missedWeightSamples = 0;
     weightSamples[weightSampleIndex] = scale.get_units(1);
     weightSampleIndex = (weightSampleIndex + 1) % SAMPLES;
