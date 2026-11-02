@@ -89,25 +89,9 @@ public class PetFeederMessagingService extends FirebaseMessagingService {
 
         switch (type) {
             case TYPE_MISSED_FEEDING:
-                channel = CHANNEL_ANOMALY;
-                icon    = R.drawable.ic_warning;
-                if (title.isEmpty()) title   = getString(R.string.fcm_missed_title);
-                if (message.isEmpty()) message = getString(R.string.fcm_missed_body);
-                break;
-
             case TYPE_PORTION_ANOMALY:
-                channel = CHANNEL_ANOMALY;
-                icon    = R.drawable.ic_scale;
-                if (title.isEmpty()) title   = getString(R.string.fcm_portion_title);
-                if (message.isEmpty()) message = getString(R.string.fcm_portion_body);
-                break;
-
             case TYPE_FREQUENCY_ALERT:
-                channel = CHANNEL_REMINDER;
-                icon    = R.drawable.ic_clock;
-                if (title.isEmpty()) title   = getString(R.string.fcm_frequency_title);
-                if (message.isEmpty()) message = getString(R.string.fcm_frequency_body);
-                break;
+                return;   // anomaly-style alerts are no longer shown
 
             default:
                 channel = CHANNEL_DEFAULT;
@@ -152,13 +136,6 @@ public class PetFeederMessagingService extends FirebaseMessagingService {
                 (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
         if (manager == null) return;
 
-        NotificationChannel anomalyChannel = new NotificationChannel(
-                CHANNEL_ANOMALY,
-                "Anomaly Alerts",
-                NotificationManager.IMPORTANCE_HIGH);
-        anomalyChannel.setDescription("Alerts for missed feedings and portion deviations");
-        anomalyChannel.enableVibration(true);
-
         NotificationChannel reminderChannel = new NotificationChannel(
                 CHANNEL_REMINDER,
                 "Feeding Reminders",
@@ -178,7 +155,7 @@ public class PetFeederMessagingService extends FirebaseMessagingService {
         progressChannel.setDescription("Consumed and remaining food of a finished feeding");
         manager.createNotificationChannel(progressChannel);
 
-        manager.createNotificationChannel(anomalyChannel);
+        manager.deleteNotificationChannel(CHANNEL_ANOMALY);   // remove the old channel from system settings
         manager.createNotificationChannel(reminderChannel);
         manager.createNotificationChannel(defaultChannel);
     }

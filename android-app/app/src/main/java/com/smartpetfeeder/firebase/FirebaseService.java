@@ -1633,8 +1633,7 @@ public class FirebaseService {
         if (cloudOnline && directInFlight == 0 && queue.isEmpty()) markSynced();
         if (listener == null) return;
         try {
-            List<AnomalyAlert> alerts = anomalyDetector.detectAnomalies(
-                    cachedRecords, cachedSchedules, recordsRef);
+            List<AnomalyAlert> alerts = new ArrayList<>();   // anomaly alerts are no longer produced
 
             SummaryStats stats      = buildSummaryStats(cachedRecords, alerts);
             List<DashboardData.FoodTrendData>      trendData = buildTrendData(cachedRecords);

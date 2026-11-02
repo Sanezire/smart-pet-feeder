@@ -43,10 +43,7 @@
     <string name="deviation_format">Deviation: %+.1f%%</string>
     <string name="deviation_normal">Deviation: Normal</string>
 
-    <string name="anomaly_alerts_title">Anomaly Alerts</string>
     <string name="anomaly">Anomaly</string>
-    <string name="no_anomalies">All Clear</string>
-    <string name="no_anomalies_message">All systems operating normally. No anomalies detected.</string>
     <string name="missed_feeding">Missed Feeding</string>
     <string name="low_portion">Low Portion</string>
     <string name="high_portion">High Portion</string>

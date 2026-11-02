@@ -107,7 +107,7 @@ public class FirebaseSimulator {
         List<FeedingRecord> feedingRecords = generateFeedingHistory();
         data.setFeedingHistory(feedingRecords);
 
-        List<AnomalyAlert> alerts = anomalyDetector.detectAnomalies(feedingRecords);
+        List<AnomalyAlert> alerts = new ArrayList<>();   // anomaly alerts are no longer produced
         data.setAnomalyAlerts(alerts);
 
         SummaryStats stats = calculateSummaryStats(feedingRecords, alerts);

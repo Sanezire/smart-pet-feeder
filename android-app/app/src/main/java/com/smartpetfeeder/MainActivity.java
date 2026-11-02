@@ -50,7 +50,6 @@ import com.google.firebase.messaging.FirebaseMessaging;
 import com.smartpetfeeder.adapter.FeedingHistoryAdapter;
 import com.smartpetfeeder.firebase.FirebaseService;
 import com.smartpetfeeder.firebase.PetFeederMessagingService;
-import com.smartpetfeeder.model.AnomalyAlert;
 import com.smartpetfeeder.model.DashboardData;
 import com.smartpetfeeder.model.FeedingRecord;
 import com.smartpetfeeder.model.FeedingSchedule;
@@ -74,7 +73,7 @@ import org.json.JSONObject;
 
 public class MainActivity extends AppCompatActivity implements FirebaseService.DataUpdateListener {
     private enum Tab { HOME, NOTIFICATIONS, SCHEDULE, SETTINGS }
-    private enum NotificationFilter { ALL, ANOMALY, FEEDING, SYSTEM }
+    private enum NotificationFilter { ALL, FEEDING, SYSTEM }
     private enum HomeState { LOADING, ERROR, CONTENT }
 
     private TextView   tvStatusBanner, tvFeedingCount, tvLastFeedingTime;
@@ -83,14 +82,14 @@ public class MainActivity extends AppCompatActivity implements FirebaseService.D
     private LineChart  lineChart;
     private BarChart   barChart;
     private RecyclerView recyclerFeedingHistory, recyclerNotifications, recyclerHomeSchedules;
-    private LinearLayout anomalyContainer, noAnomaliesState, emptyState;
-    private View       sectionAnomalyAlerts, sectionFeedingHistory;
+    private LinearLayout emptyState;
+    private View       sectionFeedingHistory;
     private View       loadingState, errorState, contentContainer, notificationsContainer, scheduleContainer, settingsContainer;
     private SwipeRefreshLayout swipeRefresh;
     private View       noDataNoticeCard;
     private TextView   tvErrorMessage;
     private MaterialButton btnRetry, btnManualFeed, btnOpenTray, tabHome, tabNotifications, tabSchedule, tabSettings;
-    private MaterialButton btnLogout, btnOpenDeviceSettings, btnShowMoreAnomalies, btnShowMoreHistory;
+    private MaterialButton btnLogout, btnOpenDeviceSettings, btnShowMoreHistory;
     private MaterialButtonToggleGroup toggleGroup, notificationFilterGroup;
     private TextView tvLiveWeightValue, tvLiveWeightTarget, tvLiveWeightDiff, tvLiveWeightMeta;
     private MaterialButton btnNotifSelect, btnNotifSelectAll, btnNotifDelete;
@@ -376,10 +375,7 @@ public class MainActivity extends AppCompatActivity implements FirebaseService.D
         lineChart           = findViewById(R.id.lineChart);
         barChart            = findViewById(R.id.barChart);
         recyclerFeedingHistory = findViewById(R.id.recyclerFeedingHistory);
-        anomalyContainer    = findViewById(R.id.anomalyContainer);
-        sectionAnomalyAlerts  = findViewById(R.id.sectionAnomalyAlerts);
         sectionFeedingHistory = findViewById(R.id.sectionFeedingHistory);
-        noAnomaliesState    = findViewById(R.id.noAnomaliesState);
         emptyState          = findViewById(R.id.emptyState);
         loadingState        = findViewById(R.id.loadingState);
         errorState          = findViewById(R.id.errorState);
@@ -431,7 +427,6 @@ public class MainActivity extends AppCompatActivity implements FirebaseService.D
         btnEditPetProfile = findViewById(R.id.btnEditPetProfile);
         btnLogout = findViewById(R.id.btnLogout);
         btnOpenDeviceSettings = findViewById(R.id.btnOpenDeviceSettings);
-        btnShowMoreAnomalies = findViewById(R.id.btnShowMoreAnomalies);
         btnShowMoreHistory = findViewById(R.id.btnShowMoreHistory);
 
         etScheduleTime = findViewById(R.id.etScheduleTime);
@@ -1175,8 +1170,7 @@ public class MainActivity extends AppCompatActivity implements FirebaseService.D
         notificationFilterGroup.check(R.id.btnFilterAll);
         notificationFilterGroup.addOnButtonCheckedListener((group, checkedId, isChecked) -> {
             if (!isChecked) return;
-            if (checkedId == R.id.btnFilterAnomaly) currentNotificationFilter = NotificationFilter.ANOMALY;
-            else if (checkedId == R.id.btnFilterFeeding) currentNotificationFilter = NotificationFilter.FEEDING;
+            if (checkedId == R.id.btnFilterFeeding) currentNotificationFilter = NotificationFilter.FEEDING;
             else if (checkedId == R.id.btnFilterSystem) currentNotificationFilter = NotificationFilter.SYSTEM;
             else currentNotificationFilter = NotificationFilter.ALL;
             if (notificationAdapter.isSelectionMode()) notificationAdapter.setSelectionMode(false);
@@ -1240,8 +1234,6 @@ public class MainActivity extends AppCompatActivity implements FirebaseService.D
             finish();
         });
 
-        btnShowMoreAnomalies.setOnClickListener(v ->
-                openNotificationsWithFilter(NotificationFilter.ANOMALY));
         btnShowMoreHistory.setOnClickListener(v ->
                 openNotificationsWithFilter(NotificationFilter.FEEDING));
     }
@@ -1897,7 +1889,6 @@ public class MainActivity extends AppCompatActivity implements FirebaseService.D
         updateSummaryCards(data.getSummaryStats());
         updateCharts(data);
         updateFeedingHistory(data.getFeedingHistory());
-        updateAnomalyAlerts(data.getAnomalyAlerts());
         updateLastUpdatedTime(data.getLastUpdated());
     }
 
@@ -2037,9 +2028,6 @@ public class MainActivity extends AppCompatActivity implements FirebaseService.D
         for (AppNotificationItem item : allNotifications) {
             if (currentNotificationFilter == NotificationFilter.ALL) {
                 filtered.add(item);
-            } else if (currentNotificationFilter == NotificationFilter.ANOMALY
-                    && item.getType() == AppNotificationItem.Type.ANOMALY) {
-                filtered.add(item);
             } else if (currentNotificationFilter == NotificationFilter.FEEDING
                     && item.getType() == AppNotificationItem.Type.FEEDING) {
                 filtered.add(item);
@@ -2054,10 +2042,6 @@ public class MainActivity extends AppCompatActivity implements FirebaseService.D
 
     private void applyAlertSectionVisibility() {
         boolean all = currentNotificationFilter == NotificationFilter.ALL;
-        if (sectionAnomalyAlerts != null) {
-            sectionAnomalyAlerts.setVisibility(
-                    all || currentNotificationFilter == NotificationFilter.ANOMALY ? View.VISIBLE : View.GONE);
-        }
         if (sectionFeedingHistory != null) {
             sectionFeedingHistory.setVisibility(
                     all || currentNotificationFilter == NotificationFilter.FEEDING ? View.VISIBLE : View.GONE);
@@ -2070,9 +2054,7 @@ public class MainActivity extends AppCompatActivity implements FirebaseService.D
 
     private void openNotificationsWithFilter(NotificationFilter filter) {
         switchTab(Tab.NOTIFICATIONS);
-        if (filter == NotificationFilter.ANOMALY) {
-            notificationFilterGroup.check(R.id.btnFilterAnomaly);
-        } else if (filter == NotificationFilter.FEEDING) {
+        if (filter == NotificationFilter.FEEDING) {
             notificationFilterGroup.check(R.id.btnFilterFeeding);
         } else if (filter == NotificationFilter.SYSTEM) {
             notificationFilterGroup.check(R.id.btnFilterSystem);
@@ -2749,65 +2731,6 @@ public class MainActivity extends AppCompatActivity implements FirebaseService.D
         return records.size() > capped ? records.subList(0, capped) : records;
     }
 
-    private void updateAnomalyAlerts(List<AnomalyAlert> alerts) {
-        int count = alerts == null ? 0 : Math.min(alerts.size(), 10);
-        if (count == 0) {
-            if (anomalyContainer.getChildCount() > 0) anomalyContainer.removeAllViews();
-            setVisibleIfChanged(anomalyContainer, false);
-            setVisibleIfChanged(noAnomaliesState, true);
-            return;
-        }
-        setVisibleIfChanged(anomalyContainer, true);
-        setVisibleIfChanged(noAnomaliesState, false);
-        while (anomalyContainer.getChildCount() > count) {
-            anomalyContainer.removeViewAt(anomalyContainer.getChildCount() - 1);
-        }
-        for (int i = 0; i < count; i++) {
-            AnomalyAlert alert = alerts.get(i);
-            String sig = alert.getId() + "|" + alert.getType() + "|" + alert.getSeverity() + "|"
-                    + alert.getDetail() + "|" + alert.getTimestamp();
-            if (i < anomalyContainer.getChildCount()) {
-                View existing = anomalyContainer.getChildAt(i);
-                if (!sig.equals(existing.getTag())) {
-                    bindAlertView(existing, alert);
-                    existing.setTag(sig);
-                }
-            } else {
-                View created = createAlertView(alert);
-                created.setTag(sig);
-                anomalyContainer.addView(created);
-            }
-        }
-    }
-
-    private View createAlertView(AnomalyAlert alert) {
-        View view = LayoutInflater.from(this)
-                .inflate(R.layout.item_anomaly_alert, anomalyContainer, false);
-        bindAlertView(view, alert);
-        return view;
-    }
-
-    private void bindAlertView(View view, AnomalyAlert alert) {
-        View     severityBar  = view.findViewById(R.id.severityIndicator);
-        ImageView ivIcon      = view.findViewById(R.id.ivAlertIcon);
-        TextView  tvType      = view.findViewById(R.id.tvAlertType);
-        TextView  tvMsg       = view.findViewById(R.id.tvAlertMessage);
-        TextView  tvTime      = view.findViewById(R.id.tvAlertTime);
-        CardView  card        = view.findViewById(R.id.cardAnomalyAlert);
-
-        int color = alert.getSeverityColor();
-        severityBar.setBackgroundColor(color);
-        ivIcon.setColorFilter(color);
-        tvType.setTextColor(color);
-        setTextIfChanged(tvType, alert.getTypeLabel());
-        setTextIfChanged(tvMsg, alert.getDetail());
-        setTextIfChanged(tvTime, alert.getTimestamp());
-
-        if (card != null) {
-            card.setCardBackgroundColor(alert.getSeverityBackgroundColor());
-        }
-    }
-
     private void updateLastUpdatedTime(long epochMs) {
         if (tvLastUpdated == null) return;
         lastDashboardUpdatedAt = epochMs;
@@ -2872,10 +2795,6 @@ public class MainActivity extends AppCompatActivity implements FirebaseService.D
                 }
             }
         }
-
-        anomalyContainer.removeAllViews();
-        anomalyContainer.setVisibility(View.GONE);
-        noAnomaliesState.setVisibility(View.VISIBLE);
     }
 
     private void updateScheduleCountBadge(List<FeedingSchedule> schedules) {
