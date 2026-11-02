@@ -2073,7 +2073,7 @@ void updateScale() {
     return;
   }
 
-  if (scale.is_ready() && hxWaitReady(20)) {
+  if (scale.is_ready()) {
     missedWeightSamples = 0;
     weightSamples[weightSampleIndex] = scale.get_units(1);
     weightSampleIndex = (weightSampleIndex + 1) % SAMPLES;
