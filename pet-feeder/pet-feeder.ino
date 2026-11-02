@@ -1991,6 +1991,29 @@ void initServoPinSafe() {
 // These versions give up after a timeout instead. A real HX711 holds DT low until its sample is
 // read; a floating pin flickers, so "ready" must be seen 3 times in a row before the library's own
 // read() (which waits for ready again, with no timeout) is allowed to run.
+// Some library versions (bogde 0.7.2 / 0.7.3) also call a blocking read() inside begin(), so begin()
+// itself freezes the sketch when no HX711 is wired. begin() is therefore only called once the DT pin
+// has been seen ready, and nothing else touches `scale` before that.
+static bool scaleBegun = false;
+
+static bool hxBegin(unsigned long timeoutMs) {
+  if (scaleBegun) return true;
+  pinMode(HX711_SCK, OUTPUT);
+  digitalWrite(HX711_SCK, LOW);          // SCK low keeps a real HX711 powered and sampling
+  pinMode(HX711_DOUT, INPUT_PULLUP);     // nothing connected: the pull-up reads high = not ready
+  unsigned long t0 = millis();
+  int stableReady = 0;
+  while (millis() - t0 < timeoutMs) {
+    if (digitalRead(HX711_DOUT) == LOW) { if (++stableReady >= 3) break; }
+    else stableReady = 0;
+    delay(1);
+  }
+  if (stableReady < 3) return false;
+  scale.begin(HX711_DOUT, HX711_SCK);
+  scaleBegun = true;
+  return true;
+}
+
 static bool hxWaitReady(unsigned long timeoutMs) {
   unsigned long t0 = millis();
   int stableReady = 0;
@@ -2018,9 +2041,7 @@ void setupScale() {
   Serial.println("   HX711 + 5KG LOAD CELL (g / kg)");
   Serial.println("======================================");
 
-  scale.begin(HX711_DOUT, HX711_SCK);
-
-  if (!hxWaitReady(500)) {
+  if (!hxBegin(500)) {
     Serial.println("ERROR!");
     Serial.println("HX711 is NOT responding.");
     Serial.println();
@@ -2061,7 +2082,7 @@ void updateScale() {
   if (!scaleAvailable) {
     if (millis() - lastScaleRetryMs < SCALE_RETRY_MS) return;
     lastScaleRetryMs = millis();
-    if (scale.is_ready()) {
+    if (hxBegin(20) && scale.is_ready()) {
       scale.set_scale(CALIBRATION_FACTOR);
       if (hxTare(10)) {
         scaleAvailable     = true;
