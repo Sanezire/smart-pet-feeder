@@ -1178,7 +1178,10 @@ void flushPendingRecords() {
 }
 
 void queueFeedingRecord(const String& id, const String& json) {
-  if (deviceUid.length() == 0) return;
+  if (deviceUid.length() == 0) {
+    Serial.println("[Record] " + id + " dropped - the feeder is not linked to an account.");
+    return;
+  }
   if (pendingRecordCount >= MAX_PENDING_RECORDS) {
     for (int i = 1; i < pendingRecordCount; i++) pendingRecords[i - 1] = pendingRecords[i];
     pendingRecordCount--;
@@ -1371,8 +1374,29 @@ void updateEatCheck() {
 }
 
 void finalizeScheduledFeedRecord() {
+  if (deviceUid.length() == 0) {
+    Serial.println("[Record] Scheduled feed NOT recorded - the feeder is not linked to an account.");
+    return;
+  }
   if (!scaleAvailable || feedTargetGrams <= 0.0f || !feedWeightMode) {
-    Serial.println("[Record] Skipped - needs the load cell and a portion size.");
+    // No usable scale reading: still log that the scheduled feeding happened, without weights.
+    String plainId = "sched_" + String(feedSlotEpochSec) + "_" + String(feedScheduleHash, HEX);
+    String plain = "{\"feedingId\":\"" + plainId + "\""
+        ",\"scheduledTime\":" + String(feedSlotEpochSec) + "000"
+        ",\"actualTime\":" + String(feedStartEpochSec) + "000"
+        ",\"feedType\":\"scheduled\""
+        ",\"weightRecorded\":false"
+        ",\"consumptionRecorded\":false"
+        ",\"status\":\"Completed\""
+        ",\"anomalyFlag\":false"
+        ",\"date\":\"" + feedDateStr + "\"";
+    if (feedTargetGrams > 0.0f) {
+      plain += ",\"scheduledPortion\":" + String(feedTargetGrams, 1)
+             + ",\"targetWeight\":" + String(feedTargetGrams, 1);
+    }
+    plain += "}";
+    queueFeedingRecord(plainId, plain);
+    Serial.println("[Record] Queued " + plainId + " without weights (scale unavailable or timed feed).");
     return;
   }
   float after = currentWeightGrams > 0.0f ? currentWeightGrams : 0.0f;
