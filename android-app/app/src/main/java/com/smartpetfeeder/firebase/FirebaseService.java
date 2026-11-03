@@ -686,26 +686,6 @@ public class FirebaseService {
         });
     }
 
-    public void sendRemoteWaterCommand(float volumeMl, String actionId, AckCallback cb) {
-        if (deviceStatusRef == null) {
-            if (cb != null) cb.onFailed("not_ready");
-            return;
-        }
-        long now = System.currentTimeMillis();
-        Map<String, Object> command = new HashMap<>();
-        command.put("commandId", actionId);
-        command.put("type", "dispense_water");
-        command.put("volumeMl", (double) volumeMl);
-        command.put("createdAt", now);
-        command.put("expiresAt", now + TRAY_COMMAND_EXPIRY_MS);
-        command.put("status", "pending");
-        deviceStatusRef.child("remote_command").setValue(command, (err, ref) -> {
-            if (cb == null) return;
-            if (err != null) cb.onFailed(err.getMessage());
-            else cb.onAcknowledged();
-        });
-    }
-
     public void recordLocalManualFeed(float portionGrams, String actionId, AckCallback cb) {
         try {
             JSONObject p = new JSONObject();

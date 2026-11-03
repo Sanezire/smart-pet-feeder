@@ -51,7 +51,6 @@
 
     <string name="quick_actions_title">Quick Actions</string>
     <string name="manual_feed">Manual Feed</string>
-    <string name="dispense_water">Dispense Water</string>
     <string name="open_tray">Open Tray</string>
     <string name="open_tray_sending">Opening...</string>
     <string name="open_tray_busy">The tray is already moving. Please wait.</string>

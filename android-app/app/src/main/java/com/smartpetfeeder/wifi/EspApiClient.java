@@ -203,23 +203,6 @@ public class EspApiClient {
         });
     }
 
-    public void sendWaterCommand(float volumeMl, String actionId, Callback callback) {
-        executor.execute(() -> {
-            try {
-                JSONObject body = new JSONObject();
-                body.put("command", "dispense_water");
-                body.put("volumeMl", volumeMl);
-                if (actionId != null && !actionId.isEmpty()) body.put("commandId", actionId);
-                JSONObject response = post("/command", body.toString(),
-                        TIMEOUT_CONNECT, TIMEOUT_READ);
-                mainHandler.post(() -> callback.onSuccess(response));
-            } catch (Exception e) {
-                Log.e(TAG, "sendWaterCommand error", e);
-                mainHandler.post(() -> callback.onError(friendlyError(e.getMessage())));
-            }
-        });
-    }
-
     public void sendTrayCommand(boolean open, String actionId, Callback callback) {
         executor.execute(() -> {
             try {

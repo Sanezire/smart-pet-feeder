@@ -247,7 +247,6 @@ public class MainActivity extends AppCompatActivity implements FirebaseService.D
         setupHomeSchedules();
         setupManualFeedButton();
         setupOpenTrayButton();
-        setupDispenseWaterButton();
         setupScheduleTab();
         setupBottomNavigation();
         setupSettingsTab();
@@ -2494,111 +2493,6 @@ public class MainActivity extends AppCompatActivity implements FirebaseService.D
         } catch (NumberFormatException e) {
             return null;
         }
-    }
-
-    private void setupDispenseWaterButton() {
-        MaterialButton btn = findViewById(R.id.btnDispenseWater);
-        if (btn != null) btn.setOnClickListener(v -> showDispenseWaterDialog());
-    }
-
-    private void showDispenseWaterDialog() {
-        EditText input = new EditText(this);
-        input.setInputType(InputType.TYPE_CLASS_NUMBER | InputType.TYPE_NUMBER_FLAG_DECIMAL);
-        input.setHint("Volume in mL");
-        input.setText("250");
-        new MaterialAlertDialogBuilder(this)
-                .setTitle("Dispense water")
-                .setMessage("Set the amount of water to dispense (1-5000 mL).")
-                .setView(input)
-                .setPositiveButton("Dispense", (d, w) -> {
-                    try {
-                        float ml = Float.parseFloat(input.getText().toString());
-                        if (ml < 1f || ml > 5000f) {
-                            Toast.makeText(this, "Volume must be between 1 and 5000 mL", Toast.LENGTH_SHORT).show();
-                            return;
-                        }
-                        triggerWaterDispense(ml);
-                    } catch (Exception ex) {
-                        Toast.makeText(this, "Invalid volume", Toast.LENGTH_SHORT).show();
-                    }
-                })
-                .setNegativeButton("Cancel", null)
-                .show();
-    }
-
-    private void triggerWaterDispense(float ml) {
-        MaterialButton btn = findViewById(R.id.btnDispenseWater);
-        if (btn != null) btn.setEnabled(false);
-        final String actionId = "water_" + System.currentTimeMillis();
-        final Runnable reenable = () -> { if (btn != null) btn.setEnabled(true); };
-
-        if (deviceDiscovery == null) {
-            sendRemoteWater(ml, actionId, reenable);
-            return;
-        }
-        deviceDiscovery.discover(new DeviceDiscovery.DiscoveryCallback() {
-            @Override
-            public void onFound(String baseUrl, String method) {
-                if (espApiClient != null) espApiClient.shutdown();
-                espApiClient = new EspApiClient(baseUrl);
-                espApiClient.sendWaterCommand(ml, actionId, new EspApiClient.Callback() {
-                    @Override public void onSuccess(JSONObject response) {
-                        reenable.run();
-                        Toast.makeText(MainActivity.this,
-                                String.format(Locale.US, "Dispensing %.0f mL of water", ml),
-                                Toast.LENGTH_LONG).show();
-                    }
-                    @Override public void onError(String error) {
-                        String msg = error == null ? "" : error.toLowerCase(Locale.US);
-                        if (msg.contains("already in progress")) {
-                            reenable.run();
-                            Toast.makeText(MainActivity.this, "Water is already being dispensed",
-                                    Toast.LENGTH_LONG).show();
-                        } else {
-                            sendRemoteWater(ml, actionId, reenable);
-                        }
-                    }
-                });
-            }
-
-            @Override
-            public void onNotFound() {
-                sendRemoteWater(ml, actionId, reenable);
-            }
-        });
-    }
-
-    private void sendRemoteWater(float ml, String actionId, Runnable reenable) {
-        if (firebaseService == null) {
-            reenable.run();
-            Toast.makeText(this, "Remote command unavailable", Toast.LENGTH_LONG).show();
-            return;
-        }
-        firebaseService.sendRemoteWaterCommand(ml, actionId, new FirebaseService.AckCallback() {
-            @Override public void onAcknowledged() {
-                Toast.makeText(MainActivity.this, "Water command sent to the feeder",
-                        Toast.LENGTH_LONG).show();
-                firebaseService.watchRemoteCommand(actionId, (status, error) -> {
-                    if ("completed".equals(status)) {
-                        reenable.run();
-                        Toast.makeText(MainActivity.this,
-                                String.format(Locale.US, "Dispensing %.0f mL of water", ml),
-                                Toast.LENGTH_LONG).show();
-                        firebaseService.stopWatchingRemoteCommand();
-                    } else if ("rejected".equals(status) || "expired".equals(status)) {
-                        reenable.run();
-                        Toast.makeText(MainActivity.this, "Water dispense was rejected by the feeder",
-                                Toast.LENGTH_LONG).show();
-                        firebaseService.stopWatchingRemoteCommand();
-                    }
-                });
-            }
-            @Override public void onFailed(String error) {
-                reenable.run();
-                Toast.makeText(MainActivity.this, "Could not send the water command",
-                        Toast.LENGTH_LONG).show();
-            }
-        });
     }
 
     private void showManualFeedDialog() {

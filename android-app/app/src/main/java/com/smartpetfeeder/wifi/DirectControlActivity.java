@@ -74,7 +74,6 @@ public class DirectControlActivity extends BaseActivity {
     private MaterialButton btnConnect;
     private SwitchMaterial switchKeepAp;
     private EditText       etFeedPortion;
-    private EditText       etWaterMl;
 
     private final Runnable pollRunnable = new Runnable() {
         @Override public void run() {
@@ -99,7 +98,6 @@ public class DirectControlActivity extends BaseActivity {
         btnConnect    = findViewById(R.id.btnDirectConnect);
         switchKeepAp  = findViewById(R.id.switchDirectKeepAp);
         etFeedPortion = findViewById(R.id.etFeedPortion);
-        etWaterMl     = findViewById(R.id.etWaterMl);
 
         schedules.addAll(store.load());
         sortSchedules();
@@ -115,7 +113,6 @@ public class DirectControlActivity extends BaseActivity {
 
         btnConnect.setOnClickListener(v -> connect());
         findViewById(R.id.btnDirectFeed).setOnClickListener(v -> feedNow());
-        findViewById(R.id.btnDirectWater).setOnClickListener(v -> dispenseWater());
         findViewById(R.id.btnDirectTrayOpen).setOnClickListener(v -> trayCommand(true));
         findViewById(R.id.btnDirectTrayClose).setOnClickListener(v -> trayCommand(false));
         findViewById(R.id.btnDirectGateClose).setOnClickListener(v -> closeGate());
@@ -294,13 +291,6 @@ public class DirectControlActivity extends BaseActivity {
     private void feedNow() {
         if (!requireConnected()) return;
         api.sendManualFeedTest(parseFloat(etFeedPortion, 0f), null, simple("Feeding started."));
-    }
-
-    private void dispenseWater() {
-        if (!requireConnected()) return;
-        float ml = parseFloat(etWaterMl, 0f);
-        if (ml <= 0f) { toast("Enter an amount in ml."); return; }
-        api.sendWaterCommand(ml, null, simple("Dispensing water."));
     }
 
     private void trayCommand(boolean open) {

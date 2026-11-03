@@ -14,21 +14,7 @@
 #define PIN_SERVO         D3   // GPIO14 - no boot-strap behaviour
 #define PIN_TRAY          D8
 #define PIN_TRAY2         D4   // second tray servo, mirrors D8 in the opposite direction
-#define PIN_RELAY         D1   // GPIO5 - water valve / pump relay
-#define PIN_FLOW_SENSOR   D2   // GPIO4 - YF-S201 pulse output
 #define PIN_FOOD_SENSOR   A0
-
-// ---- Water dispensing (YF-S201 flow sensor + relay) ----
-#define FLOW_CALIBRATION_FACTOR   11.5f   // YF-S201: pulse frequency (Hz) = 7.5 * flow (L/min)
-#define WATER_MAX_LITERS          5.0f      // hard cap for a single dispense
-#define WATER_REPORT_INTERVAL_MS  1000UL
-#define WATER_NO_FLOW_TIMEOUT_MS  15000UL   // dry-run protection: stop if no pulses for this long
-#define RELAY_ON_LEVEL            LOW    // active-low relay module (use HIGH for active-high)
-#define RELAY_OFF_LEVEL           (RELAY_ON_LEVEL == HIGH ? LOW : HIGH)
-// pulses per liter = (7.5 Hz per L/min) * 60 s = 450
-#define WATER_PULSES_PER_LITER    (FLOW_CALIBRATION_FACTOR * 60.0f)
-#define WATER_PULSE_MIN_US        5000UL
-#define WATER_SETTLE_MS           600UL
 
 #define HX711_DOUT 12
 #define HX711_SCK  13
@@ -1080,7 +1066,7 @@ void handleRemoteCommand(JsonObject cmd) {
   String status    = cmd["status"] | "";
   String type      = cmd["type"] | "";
   String commandId = cmd["commandId"] | "";
-  if (status != "pending" || (type != "manual_feed" && type != "dispense_water" && type != "open_tray" && type != "close_tray") || commandId.length() == 0) return;
+  if (status != "pending" || (type != "manual_feed" && type != "open_tray" && type != "close_tray") || commandId.length() == 0) return;
   if (commandId == lastProcessedRemoteCommandId) return;
 
   double expiresAt = cmd["expiresAt"].as<double>();
@@ -1129,16 +1115,6 @@ void handleRemoteCommand(JsonObject cmd) {
     trayLastCommandId   = commandId;
     trayRemoteCommandId = commandId;
     Serial.println("[Tray] Remote " + type + " started: " + commandId);
-    return;
-  }
-
-  if (type == "dispense_water") {
-    float ml = cmd["volumeMl"] | 0.0f;
-    lastProcessedRemoteCommandId = commandId;
-    bool started = startWater(ml);
-    firebasePatch(userPath("/device_status/remote_command.json"),
-        String("{\"status\":\"") + (started ? "completed" : "rejected") + "\",\"completedAtMs\":" + String(millis()) + "}");
-    Serial.println("[Firebase] Remote water dispense " + String(started ? "started: " : "rejected: ") + commandId);
     return;
   }
 
@@ -1684,133 +1660,6 @@ void updateFeeder() {
   }
 }
 
-volatile uint32_t waterPulseCount   = 0;
-volatile uint32_t waterTargetPulses = 0;
-volatile bool     waterActive       = false;
-volatile bool     waterLimitReached = false;
-uint32_t          waterLastPulses   = 0;
-unsigned long     waterLastTickMs   = 0;
-unsigned long     waterLastFlowMs   = 0;
-float             waterTotalMl      = 0.0f;
-float             waterFlowRateLpm  = 0.0f;
-float             waterTargetMl     = 0.0f;
-bool              waterFinalReported = true;
-String            waterStopReason   = "";
-
-volatile uint32_t waterLastPulseUs    = 0;
-volatile uint32_t waterIgnoreUntilUs  = 0;
-volatile uint32_t waterRejectedPulses = 0;
-
-void ICACHE_RAM_ATTR waterPulseISR() {
-  if (!waterActive) return;
-  uint32_t nowUs = micros();
-  // Start-up settling window: relay/pump switching noise.
-  if ((int32_t)(nowUs - waterIgnoreUntilUs) < 0) { waterRejectedPulses++; return; }
-  // Too soon after the previous pulse to be real flow.
-  if ((uint32_t)(nowUs - waterLastPulseUs) < WATER_PULSE_MIN_US) { waterRejectedPulses++; return; }
-  // A real pulse is still LOW when sampled; a short noise spike has already gone.
-  if (digitalRead(PIN_FLOW_SENSOR) != LOW) { waterRejectedPulses++; return; }
-  waterLastPulseUs = nowUs;
-  waterPulseCount++;
-  if (waterPulseCount >= waterTargetPulses) {
-    digitalWrite(PIN_RELAY, RELAY_OFF_LEVEL);
-    waterActive = false;
-    waterLimitReached = true;
-  }
-}
-
-void initWater() {
-  digitalWrite(PIN_RELAY, RELAY_OFF_LEVEL);
-  pinMode(PIN_RELAY, OUTPUT);
-  pinMode(PIN_FLOW_SENSOR, INPUT_PULLUP);
-  attachInterrupt(digitalPinToInterrupt(PIN_FLOW_SENSOR), waterPulseISR, FALLING);
-  Serial.println("[Water] Ready (relay OFF). Waiting for a dispense command.");
-}
-
-bool isWaterDispensing() { return waterActive; }
-
-bool startWater(float ml) {
-  if (waterActive) return false;
-  float maxMl = WATER_MAX_LITERS * 1000.0f;
-  if (!(ml > 0.0f)) return false;
-  if (ml > maxMl) ml = maxMl;
-  uint32_t target = (uint32_t)(ml * WATER_PULSES_PER_LITER / 1000.0f + 0.5f);
-  if (target == 0) target = 1;
-  noInterrupts();
-  waterPulseCount   = 0;
-  waterTargetPulses = target;
-  waterLimitReached = false;
-  interrupts();
-  waterLastPulses    = 0;
-  waterTotalMl       = 0.0f;
-  waterFlowRateLpm   = 0.0f;
-  waterTargetMl      = ml;
-  waterFinalReported = false;
-  waterStopReason    = "";
-  waterLastTickMs    = millis();
-  waterLastFlowMs    = waterLastTickMs;
-  noInterrupts();
-  waterRejectedPulses = 0;
-  waterLastPulseUs    = micros() - WATER_PULSE_MIN_US;
-  waterIgnoreUntilUs  = micros() + WATER_SETTLE_MS * 1000UL;
-  waterActive = true;
-  interrupts();
-  digitalWrite(PIN_RELAY, RELAY_ON_LEVEL);
-  Serial.println("[Water] Relay ON. Target " + String(ml, 0) + " mL ("
-                 + String((unsigned long)target) + " pulses).");
-  return true;
-}
-
-void updateWater() {
-  if (waterFinalReported) return;
-
-  if (waterLimitReached) {
-    noInterrupts();
-    uint32_t pulses = waterPulseCount;
-    interrupts();
-    waterTotalMl     = pulses * 1000.0f / WATER_PULSES_PER_LITER;
-    waterFlowRateLpm = 0.0f;
-    waterFinalReported = true;
-    Serial.println("[Water] Target reached - relay OFF. Final volume: "
-                   + String(waterTotalMl, 1) + " mL (" + String(waterTotalMl / 1000.0f, 3)
-                   + " L), pulses: " + String((unsigned long)pulses)
-                   + ", rejected noise pulses: " + String((unsigned long)waterRejectedPulses));
-    return;
-  }
-
-  unsigned long nowMs = millis();
-  unsigned long dtMs  = nowMs - waterLastTickMs;
-  if (dtMs < WATER_REPORT_INTERVAL_MS) return;
-  waterLastTickMs = nowMs;
-
-  noInterrupts();
-  uint32_t pulses = waterPulseCount;
-  interrupts();
-  uint32_t delta = pulses - waterLastPulses;
-  waterLastPulses = pulses;
-  if (delta > 0) waterLastFlowMs = nowMs;
-
-  float freqHz = delta * 1000.0f / (float)dtMs;
-  waterFlowRateLpm = freqHz / FLOW_CALIBRATION_FACTOR;
-  waterTotalMl     = pulses * 1000.0f / WATER_PULSES_PER_LITER;
-
-  Serial.println("[Water] Flow: " + String(waterFlowRateLpm, 2) + " L/min, total: "
-                 + String(waterTotalMl, 1) + " mL, pulses: " + String((unsigned long)pulses)
-                 + ", rejected: " + String((unsigned long)waterRejectedPulses));
-
-  if (nowMs - waterLastFlowMs >= WATER_NO_FLOW_TIMEOUT_MS) {
-    noInterrupts();
-    waterActive = false;
-    digitalWrite(PIN_RELAY, RELAY_OFF_LEVEL);
-    interrupts();
-    waterFinalReported = true;
-    waterStopReason = "no_flow";
-    Serial.println("[Water] ANOMALY: no flow for " + String(WATER_NO_FLOW_TIMEOUT_MS / 1000UL)
-                   + " s - relay OFF (empty tank or blocked line). Final volume: "
-                   + String(waterTotalMl, 1) + " mL, pulses: " + String((unsigned long)pulses));
-  }
-}
-
 const char* trayErrorText(int code) {
   switch (code) {
     case TRAY_ERR_BUSY:     return "Tray cycle already in progress";
@@ -2165,14 +2014,12 @@ String buildStatusJson() {
   doc["currentWeightAvailable"] = hasValidLiveWeight();
   doc["currentWeight"] = liveWeight;
   doc["weightUpdatedAtMs"] = lastWeightSampleMs;
-  doc["water_dispensing"] = isWaterDispensing();
   doc["tray_active"]      = (trayState != TRAY_IDLE);
   doc["tray_state"]       = trayStateName();
   doc["tray_close_minutes"] = trayCloseAfterMin;
   doc["tray_auto_close_in_s"] = (trayAutoCloseArmed && trayState == TRAY_HOLDING)
       ? (long)((long)(trayAutoCloseAtMs - millis()) > 0 ? (trayAutoCloseAtMs - millis()) / 1000UL : 0UL)
       : -1L;
-  doc["water_ml"]         = waterTotalMl;
   doc["schedule_count"] = localScheduleCount;
   doc["account_linked"] = (deviceUid.length() > 0);
   doc["account_hash"]   = deviceUid.length() ? hashString(deviceUid) : 0;
@@ -2423,21 +2270,6 @@ void handleCommand() {
     triggerFeed(portion);
     server.send(200, "application/json",
       "{\"status\":\"ok\",\"message\":\"Manual feed test accepted\",\"led_flashes\":5}");
-    return;
-  }
-
-  if (command == "dispense_water") {
-    float ml = doc["volumeMl"] | 0.0f;
-    if (!(ml > 0.0f) || ml > WATER_MAX_LITERS * 1000.0f) {
-      server.send(400, "application/json", "{\"error\":\"volumeMl must be between 1 and 5000\"}");
-      return;
-    }
-    if (!startWater(ml)) {
-      server.send(409, "application/json", "{\"error\":\"Water dispensing already in progress\"}");
-      return;
-    }
-    server.send(200, "application/json",
-      "{\"status\":\"ok\",\"message\":\"Water dispensing started\"}");
     return;
   }
 
@@ -2776,7 +2608,6 @@ void setup() {
   Serial.println("\n\n[Boot] Smart Pet Feeder starting...");
 
   initTrayPinSafe();
-  initWater();
   initServoPinSafe();
   feederServo.attach(PIN_SERVO);
   feederServo.write(SERVO_HOME_ANGLE);
@@ -2836,7 +2667,6 @@ void loop() {
   updateTray();
   updateFirebaseRemoteControl();
   updateEatCheck();
-  updateWater();
 
   if (currentMode == MODE_STATION && WiFi.status() != WL_CONNECTED) {
     Serial.println("[WiFi] Connection lost — attempting reconnect...");

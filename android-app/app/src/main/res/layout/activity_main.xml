@@ -782,18 +782,6 @@
                     style="@style/Widget.SmartPetFeeder.Button"/>
 
                 <com.google.android.material.button.MaterialButton
-                    android:id="@+id/btnDispenseWater"
-                    android:layout_width="match_parent"
-                    android:layout_height="56dp"
-                    android:layout_marginTop="12dp"
-                    android:text="@string/dispense_water"
-                    app:icon="@drawable/ic_water_drop"
-                    app:iconGravity="textStart"
-                    app:iconPadding="12dp"
-                    app:iconSize="20dp"
-                    style="@style/Widget.SmartPetFeeder.Button"/>
-
-                <com.google.android.material.button.MaterialButton
                     android:id="@+id/btnOpenTray"
                     android:layout_width="match_parent"
                     android:layout_height="56dp"
