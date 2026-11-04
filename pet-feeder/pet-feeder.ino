@@ -347,6 +347,7 @@ void syncClockIfNeeded(bool force);
 void updateScheduledFeeding();
 void beginScheduledFeed(float portion, uint32_t idHash, uint32_t slotEpoch, const String& dateStr);
 void updatePendingScheduledFeed();
+bool trayIsOut();
 void updateFirebaseRemoteControl();
 void markStationConnected();
 uint8_t repeatDaysToMask(JsonArray days);
