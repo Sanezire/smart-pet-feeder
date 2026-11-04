@@ -2099,11 +2099,7 @@ public class MainActivity extends AppCompatActivity implements FirebaseService.D
     private void updateAdaptiveFeedUi() {
         if (firebaseService == null) return;
         PetProfile profile = currentPetProfile;
-        PetFeedingCalculator.Result result =
-                PetFeedingCalculator.calculate(profile, enabledFeedingsPerDay);
-        lastRecommendation = result;
-
-        if (result == null) {
+        if (profile == null) {
             if (tvPetName != null) tvPetName.setText(R.string.pet_profile_empty_title);
             if (tvPetInfo != null) tvPetInfo.setText(R.string.pet_profile_empty_hint);
             if (layoutRecommendedFood != null) layoutRecommendedFood.setVisibility(View.GONE);
@@ -2117,34 +2113,10 @@ public class MainActivity extends AppCompatActivity implements FirebaseService.D
         String typeLabel = getString(profile.isCat() ? R.string.pet_type_cat : R.string.pet_type_dog);
         setTextIfChanged(tvPetName, profile.getName());
         updatePetIcon(profile);
-        if (tvPetInfo != null) {
-            setTextIfChanged(tvPetInfo, getString(R.string.pet_profile_type_age_format,
-                    typeLabel, profile.getAgeLabel())
-                    + "\n"
-                    + getString(R.string.pet_profile_weight_activity_format,
-                    profile.getWeightLabel(), activityLabel(profile.getActivity())));
-        }
-        if (tvRecommendedPortion != null) {
-            setTextIfChanged(tvRecommendedPortion, getString(R.string.recommended_food_summary,
-                    getString(R.string.recommended_food_per_day, Math.round(result.dailyGrams)),
-                    getString(R.string.recommended_food_per_feeding, Math.round(result.portionGrams))));
-        }
-        setVisibleIfChanged(layoutRecommendedFood, true);
-        if (tvScheduleMismatch != null) {
-            boolean mismatch = enabledFeedingsPerDay > 0
-                    && enabledFeedingsPerDay != result.feedingsPerDay;
-            setVisibleIfChanged(tvScheduleMismatch, mismatch);
-            if (mismatch) {
-                setTextIfChanged(tvScheduleMismatch, getString(R.string.recommended_food_schedule_mismatch,
-                        enabledFeedingsPerDay, result.feedingsPerDay));
-            }
-        }
+        if (tvPetInfo != null) setTextIfChanged(tvPetInfo, typeLabel);
+        if (layoutRecommendedFood != null) layoutRecommendedFood.setVisibility(View.GONE);
         if (btnEditPetProfile != null) btnEditPetProfile.setText(R.string.pet_profile_edit);
-
-        if (Math.abs(firebaseService.getRecommendedPortion() - result.portionGrams) > 0.01f) {
-            firebaseService.updateRecommendedPortion(result.portionGrams);
-        }
-        applyRecommendedPortionDefault();
+        lastRecommendation = null;
         updateScheduleRecommendationUi();
     }
 
@@ -2155,39 +2127,9 @@ public class MainActivity extends AppCompatActivity implements FirebaseService.D
     }
 
     private void updateScheduleRecommendationUi() {
-        PetFeedingCalculator.Result r = lastRecommendation;
-        if (scheduleAdapter != null) {
-            scheduleAdapter.setRecommendedPortion(r == null ? 0f : r.portionGrams);
-        }
-        if (layoutSchedulePlan == null) return;
-        if (r == null) {
-            layoutSchedulePlan.setVisibility(View.GONE);
-            if (layoutPortionRecommended != null) layoutPortionRecommended.setVisibility(View.GONE);
-            return;
-        }
-        int grams  = Math.round(r.portionGrams);
-        int active = countActiveSchedules();
-
-        layoutSchedulePlan.setVisibility(View.VISIBLE);
-        tvSchedulePlanTitle.setText(getString(R.string.schedule_plan_title, r.feedingsPerDay, grams));
-        boolean needMore = active < r.feedingsPerDay;
-        if (active == r.feedingsPerDay) {
-            tvSchedulePlanDetail.setText(getString(R.string.schedule_plan_on_track, active));
-        } else if (needMore) {
-            tvSchedulePlanDetail.setText(getString(R.string.schedule_plan_need_more,
-                    active, r.feedingsPerDay - active, r.feedingsPerDay));
-        } else {
-            tvSchedulePlanDetail.setText(getString(R.string.schedule_plan_too_many,
-                    active, r.feedingsPerDay));
-        }
-        if (btnAddSuggestedSchedules != null) {
-            btnAddSuggestedSchedules.setVisibility(needMore ? View.VISIBLE : View.GONE);
-        }
-        if (layoutPortionRecommended != null) {
-            layoutPortionRecommended.setVisibility(View.VISIBLE);
-            tvSchedulePortionRecommended.setText(
-                    getString(R.string.schedule_portion_recommended_line, grams));
-        }
+        if (scheduleAdapter != null) scheduleAdapter.setRecommendedPortion(0f);
+        if (layoutSchedulePlan != null) layoutSchedulePlan.setVisibility(View.GONE);
+        if (layoutPortionRecommended != null) layoutPortionRecommended.setVisibility(View.GONE);
     }
 
     private void addSuggestedSchedules() {

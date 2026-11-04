@@ -52,16 +52,24 @@
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btnPetDog"
-            android:layout_width="wrap_content"
-            android:layout_height="36dp"
+            android:layout_width="120dp"
+            android:layout_height="48dp"
             android:text="@string/pet_type_dog"
-            style="@style/Widget.SmartPetFeeder.ToggleButton"/>
+            style="@style/Widget.SmartPetFeeder.ToggleButton"
+            app:icon="@drawable/dog_icon"
+            app:iconSize="24dp"
+            app:iconPadding="8dp"
+            app:iconGravity="textStart"/>
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btnPetCat"
-            android:layout_width="wrap_content"
-            android:layout_height="36dp"
+            android:layout_width="120dp"
+            android:layout_height="48dp"
             android:text="@string/pet_type_cat"
-            style="@style/Widget.SmartPetFeeder.ToggleButton"/>
+            style="@style/Widget.SmartPetFeeder.ToggleButton"
+            app:icon="@drawable/cat_icon"
+            app:iconSize="24dp"
+            app:iconPadding="8dp"
+            app:iconGravity="textStart"/>
     </com.google.android.material.button.MaterialButtonToggleGroup>
 </LinearLayout>
