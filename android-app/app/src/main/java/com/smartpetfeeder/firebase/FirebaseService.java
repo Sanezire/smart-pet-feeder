@@ -184,7 +184,7 @@ public class FirebaseService {
 
     private List<FeedingRecord>   cachedRecords   = new ArrayList<>();
     private List<FeedingSchedule> cachedSchedules = new ArrayList<>();
-    private String                petName         = "Buddy";
+    private String                petName         = "";
     private boolean               deviceConnected = false;
     private float                 recommendedPortion = 80f;
 
@@ -369,7 +369,6 @@ public class FirebaseService {
                 Boolean alreadySeeded = snapshot.getValue(Boolean.class);
                 if (Boolean.TRUE.equals(alreadySeeded)) {
                     seedMockFeedingRecordsIfEmpty();
-                    seedDeviceStatusIfEmpty();
                     return;
                 }
                 schedulesRef.addListenerForSingleValueEvent(new ValueEventListener() {
@@ -382,19 +381,16 @@ public class FirebaseService {
                         }
                         metaRef.child("schedules_seeded").setValue(true);
                         seedMockFeedingRecordsIfEmpty();
-                        seedDeviceStatusIfEmpty();
                     }
                     @Override public void onCancelled(DatabaseError error) {
                         Log.w(TAG, "seedDefaultSchedules schedule check cancelled", error.toException());
                         seedMockFeedingRecordsIfEmpty();
-                        seedDeviceStatusIfEmpty();
                     }
                 });
             }
             @Override public void onCancelled(DatabaseError error) {
                 Log.w(TAG, "seedDefaultSchedules meta check cancelled", error.toException());
                 seedMockFeedingRecordsIfEmpty();
-                seedDeviceStatusIfEmpty();
             }
         });
     }
@@ -516,7 +512,6 @@ public class FirebaseService {
         petProfileRef.setValue(profileData)
                 .addOnSuccessListener(u -> {
                     directInFlight = Math.max(0, directInFlight - 1);
-                    deviceStatusRef.child("petName").setValue(profile.getName());
                     markSynced();
                     if (callback != null) callback.onSaved();
                 })
@@ -550,7 +545,7 @@ public class FirebaseService {
         petProfileValueListener = new ValueEventListener() {
             @Override public void onDataChange(DataSnapshot snapshot) {
                 petProfile = parsePetProfile(snapshot);
-                if (petProfile != null) petName = petProfile.getName();
+                petName = petProfile != null ? petProfile.getName() : "";
                 if (petProfileListener != null) petProfileListener.onPetProfileChanged(petProfile);
                 onNewData();
             }
@@ -820,19 +815,6 @@ public class FirebaseService {
         metaRef.child("seed_timestamp").setValue(ServerValue.TIMESTAMP);
     }
 
-    private void seedDeviceStatusIfEmpty() {
-        deviceStatusRef.addListenerForSingleValueEvent(new ValueEventListener() {
-            @Override public void onDataChange(DataSnapshot snapshot) {
-                if (!snapshot.hasChild("petName")) {
-                    deviceStatusRef.child("petName").setValue("Buddy");
-                }
-            }
-            @Override public void onCancelled(DatabaseError error) {
-                Log.w(TAG, "device_status seed cancelled", error.toException());
-            }
-        });
-    }
-
     private void attachRecordsListener() {
         recordsListener = new ValueEventListener() {
             @Override public void onDataChange(DataSnapshot snapshot) {
@@ -907,10 +889,6 @@ public class FirebaseService {
                 if (snapshot.hasChild("connected")) {
                     Boolean c = snapshot.child("connected").getValue(Boolean.class);
                     deviceConnected = Boolean.TRUE.equals(c);
-                }
-                if (snapshot.hasChild("petName")) {
-                    String name = snapshot.child("petName").getValue(String.class);
-                    if (name != null && !name.isEmpty() && petProfile == null) petName = name;
                 }
                 if (snapshot.hasChild("recommendedPortion")) {
                     Float rp = snapshot.child("recommendedPortion").getValue(Float.class);

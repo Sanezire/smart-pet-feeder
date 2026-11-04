@@ -2282,8 +2282,11 @@ public class MainActivity extends AppCompatActivity implements FirebaseService.D
                                             R.string.pet_profile_saved, Toast.LENGTH_SHORT).show();
                                 }
                                 @Override public void onFailed(String error) {
+                                    String detail = error == null || error.trim().isEmpty()
+                                            ? "Unknown Firebase error" : error;
                                     Toast.makeText(MainActivity.this,
-                                            R.string.pet_profile_save_failed, Toast.LENGTH_SHORT).show();
+                                            getString(R.string.pet_profile_save_failed) + ": " + detail,
+                                            Toast.LENGTH_LONG).show();
                                 }
                             });
                     dialog.dismiss();
@@ -2294,10 +2297,9 @@ public class MainActivity extends AppCompatActivity implements FirebaseService.D
 
     private void showManualFeedDialog() {
         if (firebaseService == null) return;
-        float rec = firebaseService.getRecommendedPortion();
         View view = getLayoutInflater().inflate(R.layout.dialog_manual_feed, null);
         EditText input = view.findViewById(R.id.etManualPortion);
-        input.setText(String.format(Locale.US, "%.0f", rec > 0f ? rec : 80f));
+        input.setText("0");
         MaterialButton decrease = view.findViewById(R.id.btnPortionDecrease);
         MaterialButton increase = view.findViewById(R.id.btnPortionIncrease);
         View.OnClickListener stepPortion = button -> {
