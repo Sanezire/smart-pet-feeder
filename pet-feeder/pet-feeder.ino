@@ -108,6 +108,8 @@
 #define HEAP_LOG_MS               60000UL  // periodic heap line on the serial monitor
 #define LOCAL_CLIENT_ACTIVE_MS    10000UL  // the app counts as "reading locally" if it polled /status this recently
 #define TRAY_PRE_OPEN_SAMPLE_MS   300UL    // take the after-dispense weight this long before the tray opens
+#define SCHED_TRAY_WAIT_MAX_MS    60000UL  // a scheduled feed waits at most this long for the tray to close
+#define TRAY_OUT_MESSAGE          "Tray is out. Close the tray first, then feed."
 #define FEED_SETTLE_MS            1500UL
 #define PORTION_LOW_RATIO         0.80f
 #define PORTION_HIGH_RATIO        1.20f
@@ -186,6 +188,14 @@ bool          trayClosedReportPending = false;  // last-closed time not yet sent
 time_t        trayClosedEpoch     = 0;      // wall-clock close time, 0 if the clock was not synced
 unsigned long lastLocalStatusMs   = 0;      // last time a local client (the app) read /status
 bool          localStatusSeen     = false;
+bool          schedFeedPending    = false;  // a scheduled feed is waiting for the tray to close
+bool          schedFeedCloseSent  = false;
+float         schedFeedPortion    = 0.0f;
+uint32_t      schedFeedHash       = 0;
+uint32_t      schedFeedSlotEpoch  = 0;
+String        schedFeedDate;
+unsigned long schedFeedDeadlineMs = 0;
+unsigned long schedFeedFireAtMs   = 0;      // 0 until the tray is closed, then the moment to start feeding
 uint32_t      minFreeHeapSeen     = 0xFFFFFFFFUL;  // lowest free heap observed since boot
 unsigned long lastHeapLogMs       = 0;
 unsigned long lastHeapSkipLogMs   = 0;
@@ -335,6 +345,8 @@ bool hasEnabledSchedule() {
 bool isClockSynced();
 void syncClockIfNeeded(bool force);
 void updateScheduledFeeding();
+void beginScheduledFeed(float portion, uint32_t idHash, uint32_t slotEpoch, const String& dateStr);
+void updatePendingScheduledFeed();
 void updateFirebaseRemoteControl();
 void markStationConnected();
 uint8_t repeatDaysToMask(JsonArray days);
@@ -726,19 +738,63 @@ void updateScheduledFeeding() {
     if (s.daysMask != 0 && (s.daysMask & todayMask) == 0) continue;
     if (s.lastTriggeredYday == local->tm_yday) continue;
 
-    if (!isFeeding) {
+    if (!isFeeding && !schedFeedPending) {
       s.lastTriggeredYday = local->tm_yday;
       Serial.println("[Schedule] Feeding triggered at " + String(s.hour) + ":" + String(s.minute));
-      triggerFeed(s.portionGrams, true);
-      feedIsScheduled   = true;
-      feedScheduleHash  = s.idHash;
-      feedStartEpochSec = (uint32_t)now;
-      feedSlotEpochSec  = (uint32_t)now - (uint32_t)local->tm_sec;
       char dbuf[8];
       strftime(dbuf, sizeof(dbuf), "%m/%d", local);
-      feedDateStr = String(dbuf);
+      uint32_t slotEpoch = (uint32_t)now - (uint32_t)local->tm_sec;
+      if (trayIsOut()) {
+        // Close the tray first, let the scale settle, then feed (see updatePendingScheduledFeed).
+        schedFeedPending    = true;
+        schedFeedCloseSent  = false;
+        schedFeedPortion    = s.portionGrams;
+        schedFeedHash       = s.idHash;
+        schedFeedSlotEpoch  = slotEpoch;
+        schedFeedDate       = String(dbuf);
+        schedFeedFireAtMs   = 0;
+        schedFeedDeadlineMs = millis() + SCHED_TRAY_WAIT_MAX_MS;
+        Serial.println("[Schedule] Tray is out - closing it before feeding.");
+      } else {
+        beginScheduledFeed(s.portionGrams, s.idHash, slotEpoch, String(dbuf));
+      }
     }
   }
+}
+
+void beginScheduledFeed(float portion, uint32_t idHash, uint32_t slotEpoch, const String& dateStr) {
+  triggerFeed(portion, true);
+  feedIsScheduled   = true;
+  feedScheduleHash  = idHash;
+  feedStartEpochSec = (uint32_t)time(nullptr);
+  feedSlotEpochSec  = slotEpoch;
+  feedDateStr       = dateStr;
+}
+
+// A scheduled feed that came due while the tray was out: close the tray, wait for it to finish and for the
+// scale to settle, then feed. Gives up (feed skipped) if the tray has not closed within SCHED_TRAY_WAIT_MAX_MS.
+void updatePendingScheduledFeed() {
+  if (!schedFeedPending) return;
+  unsigned long nowMs = millis();
+  if ((long)(nowMs - schedFeedDeadlineMs) >= 0) {
+    schedFeedPending = false;
+    Serial.println("[Schedule] Tray did not close in time - scheduled feed skipped.");
+    return;
+  }
+  if (isFeeding) { schedFeedFireAtMs = 0; return; }              // something else started first: keep waiting
+  if (trayState == TRAY_OPENING || trayState == TRAY_HOLDING) {
+    if (!schedFeedCloseSent && requestTrayClose() == TRAY_OK) {
+      schedFeedCloseSent = true;
+      Serial.println("[Schedule] Closing the tray before the scheduled feed.");
+    }
+    return;
+  }
+  if (trayState != TRAY_IDLE) return;                            // closing or settling
+  if (schedFeedFireAtMs == 0) schedFeedFireAtMs = nowMs + TRAY_CLOSE_SETTLE_MS + 300UL;
+  if ((long)(nowMs - schedFeedFireAtMs) < 0) return;
+  schedFeedPending = false;
+  Serial.println("[Schedule] Tray closed - starting the scheduled feed.");
+  beginScheduledFeed(schedFeedPortion, schedFeedHash, schedFeedSlotEpoch, schedFeedDate);
 }
 
 String buildSchedulesJson() {
@@ -882,6 +938,11 @@ bool firebasePatch(const String& path, const String& payload) {
 // Firebase live-weight pushes pause meanwhile; away from home nothing polls /status and they resume.
 bool localClientActive() {
   return localStatusSeen && (millis() - lastLocalStatusMs) < LOCAL_CLIENT_ACTIVE_MS;
+}
+
+// The tray is anything but fully closed (opening, open, closing or settling).
+bool trayIsOut() {
+  return trayState != TRAY_IDLE;
 }
 
 bool liveWeightMoved() {
@@ -1120,6 +1181,13 @@ void handleRemoteCommand(JsonObject cmd) {
 
   float portion = cmd["portionGrams"] | 0.0f;
   lastProcessedRemoteCommandId = commandId;
+  if (trayIsOut()) {
+    firebasePatch(userPath("/device_status/remote_command.json"),
+        String("{\"status\":\"rejected\",\"error\":\"") + TRAY_OUT_MESSAGE
+        + "\",\"completedAtMs\":" + String(millis()) + "}");
+    Serial.println("[Firebase] Remote manual feed rejected - tray is out: " + commandId);
+    return;
+  }
   if (!isFeeding) { feedManualRecordId = commandId; triggerFeed(portion); }
   firebasePatch(userPath("/device_status/remote_command.json"),
       "{\"status\":\"completed\",\"completedAtMs\":" + String(millis()) + "}");
@@ -2262,6 +2330,11 @@ void handleFeedNow() {
     return;
   }
 
+  if (trayIsOut()) {
+    server.send(409, "application/json", "{\"error\":\"" TRAY_OUT_MESSAGE "\"}");
+    return;
+  }
+
   triggerFeed();
   server.send(200, "application/json",
     "{\"status\":\"ok\",\"message\":\"Feed cycle started\"}");
@@ -2286,6 +2359,10 @@ void handleCommand() {
   if (command == "manual_feed_test") {
     if (isFeeding) {
       server.send(409, "application/json", "{\"error\":\"Feed cycle already in progress\"}");
+      return;
+    }
+    if (trayIsOut()) {
+      server.send(409, "application/json", "{\"error\":\"" TRAY_OUT_MESSAGE "\"}");
       return;
     }
     float portion = doc["portionGrams"] | 0.0f;
@@ -2688,6 +2765,7 @@ void loop() {
   updateFeeder();
   updateTrayAutoOpen();
   updateScheduledFeeding();
+  updatePendingScheduledFeed();
   updateTray();
   updateFirebaseRemoteControl();
   updateEatCheck();

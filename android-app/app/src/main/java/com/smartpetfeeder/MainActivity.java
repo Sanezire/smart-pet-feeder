@@ -526,9 +526,18 @@ public class MainActivity extends AppCompatActivity implements FirebaseService.D
             @Override
             public void onError(String errorMessage) {
                 restoreManualFeedButton();
+                if (isTrayOutError(errorMessage)) {
+                    // The feeder refused on purpose: do not queue a cloud command that could fire later.
+                    Toast.makeText(MainActivity.this, errorMessage, Toast.LENGTH_LONG).show();
+                    return;
+                }
                 sendRemoteManualFeedCommand(portionGrams, actionId, true);
             }
         });
+    }
+
+    private static boolean isTrayOutError(String message) {
+        return message != null && message.toLowerCase(Locale.US).contains("tray is out");
     }
 
     private void sendRemoteManualFeedCommand(float portionGrams, String actionId, boolean afterLocalFail) {
@@ -549,6 +558,17 @@ public class MainActivity extends AppCompatActivity implements FirebaseService.D
                                 afterLocalFail ? R.string.sync_feed_sent_cloud_after_local_fail
                                                : R.string.sync_feed_sent_cloud,
                                 Toast.LENGTH_LONG).show();
+                        // Tell the user if the feeder refuses it (for example because the tray is out).
+                        firebaseService.watchRemoteCommand(actionId, (status, error) -> {
+                            if ("rejected".equals(status) || "expired".equals(status)) {
+                                Toast.makeText(MainActivity.this,
+                                        isTrayOutError(error) ? error : "The feeder did not accept the feed.",
+                                        Toast.LENGTH_LONG).show();
+                                firebaseService.stopWatchingRemoteCommand();
+                            } else if ("completed".equals(status)) {
+                                firebaseService.stopWatchingRemoteCommand();
+                            }
+                        });
                     }
                     @Override public void onFailed(String error) {
                         if (!"discarded".equals(error)) {
