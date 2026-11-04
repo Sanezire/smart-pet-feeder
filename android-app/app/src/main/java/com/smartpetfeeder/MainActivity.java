@@ -89,7 +89,7 @@ public class MainActivity extends AppCompatActivity implements FirebaseService.D
     private View       noDataNoticeCard;
     private TextView   tvErrorMessage;
     private MaterialButton btnRetry, btnManualFeed, btnOpenTray, tabHome, tabNotifications, tabSchedule, tabSettings;
-    private MaterialButton btnLogout, btnOpenDeviceSettings, btnShowMoreHistory;
+    private MaterialButton btnLogout, btnOpenDeviceSettings;
     private MaterialButtonToggleGroup toggleGroup, notificationFilterGroup;
     private TextView tvLiveWeightValue, tvLiveWeightTarget, tvLiveWeightDiff, tvLiveWeightMeta;
     private MaterialButton btnNotifSelect, btnNotifSelectAll, btnNotifDelete;
@@ -426,7 +426,6 @@ public class MainActivity extends AppCompatActivity implements FirebaseService.D
         btnEditPetProfile = findViewById(R.id.btnEditPetProfile);
         btnLogout = findViewById(R.id.btnLogout);
         btnOpenDeviceSettings = findViewById(R.id.btnOpenDeviceSettings);
-        btnShowMoreHistory = findViewById(R.id.btnShowMoreHistory);
 
         etScheduleTime = findViewById(R.id.etScheduleTime);
         etSchedulePortion = findViewById(R.id.etSchedulePortion);
@@ -1253,8 +1252,6 @@ public class MainActivity extends AppCompatActivity implements FirebaseService.D
             finish();
         });
 
-        btnShowMoreHistory.setOnClickListener(v ->
-                openNotificationsWithFilter(NotificationFilter.FEEDING));
     }
 
     private void setupScheduleTab() {
