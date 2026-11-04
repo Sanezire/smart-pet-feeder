@@ -1213,8 +1213,12 @@ public class MainActivity extends AppCompatActivity implements FirebaseService.D
             }
             return false;
         });
-        // Restart the screen so everything loads again, as if the app was just opened.
-        swipeRefresh.setOnRefreshListener(() -> swipeRefresh.postDelayed(this::recreate, 300));
+        swipeRefresh.setOnRefreshListener(() -> {
+            if (firebaseService != null) firebaseService.startListening();
+            swipeRefresh.postDelayed(() -> {
+                if (swipeRefresh != null) swipeRefresh.setRefreshing(false);
+            }, 500);
+        });
     }
 
     private void setupBottomNavigation() {

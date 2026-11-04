@@ -44,8 +44,9 @@
 
     <com.google.android.material.button.MaterialButtonToggleGroup
         android:id="@+id/toggleGroupPetType"
-        android:layout_width="wrap_content"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:gravity="center"
         android:layout_marginBottom="@dimen/spacing_lg"
         app:singleSelection="true"
         app:selectionRequired="true">
@@ -59,6 +60,7 @@
             app:icon="@drawable/dog_icon"
             app:iconSize="24dp"
             app:iconPadding="8dp"
+            app:iconTint="@color/toggle_btn_text"
             app:iconGravity="textStart"/>
 
         <com.google.android.material.button.MaterialButton
@@ -70,6 +72,7 @@
             app:icon="@drawable/cat_icon"
             app:iconSize="24dp"
             app:iconPadding="8dp"
+            app:iconTint="@color/toggle_btn_text"
             app:iconGravity="textStart"/>
     </com.google.android.material.button.MaterialButtonToggleGroup>
 </LinearLayout>
