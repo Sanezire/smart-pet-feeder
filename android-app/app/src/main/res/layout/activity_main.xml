@@ -1126,7 +1126,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="LIVE WEIGHT vs TARGET"
+                        android:text="LIVE WEIGHT"
                         android:textSize="10sp"
                         android:textStyle="bold"
                         android:textColor="@color/colorTextLabel"
@@ -1142,33 +1142,6 @@
                         android:textStyle="bold"
                         android:textColor="@color/colorTextPrimary"/>
 
-                    <TextView
-                        android:id="@+id/tvLiveWeightTarget"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="4dp"
-                        android:text="Target: --"
-                        android:textSize="13sp"
-                        android:textColor="@color/colorTextSecondary"/>
-
-                    <TextView
-                        android:id="@+id/tvLiveWeightDiff"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="2dp"
-                        android:text="Difference: --"
-                        android:textSize="13sp"
-                        android:textStyle="bold"
-                        android:textColor="@color/colorTextSecondary"/>
-
-                    <TextView
-                        android:id="@+id/tvLiveWeightMeta"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="6dp"
-                        android:text="Waiting for feeder reading"
-                        android:textSize="11sp"
-                        android:textColor="@color/colorTextMuted"/>
                 </LinearLayout>
             </androidx.cardview.widget.CardView>
 

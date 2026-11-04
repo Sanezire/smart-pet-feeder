@@ -91,7 +91,7 @@ public class MainActivity extends AppCompatActivity implements FirebaseService.D
     private MaterialButton btnRetry, btnManualFeed, btnOpenTray, tabHome, tabNotifications, tabSchedule, tabSettings;
     private MaterialButton btnLogout, btnOpenDeviceSettings;
     private MaterialButtonToggleGroup toggleGroup, notificationFilterGroup;
-    private TextView tvLiveWeightValue, tvLiveWeightTarget, tvLiveWeightDiff, tvLiveWeightMeta;
+    private TextView tvLiveWeightValue;
     private MaterialButton btnNotifSelect, btnNotifSelectAll, btnNotifDelete;
     private TextView   tvConnectionStatus;
     private TextView   tvRecommendedPortion;
@@ -394,9 +394,6 @@ public class MainActivity extends AppCompatActivity implements FirebaseService.D
         recyclerHomeSchedules = findViewById(R.id.recyclerHomeSchedules);
         notificationFilterGroup = findViewById(R.id.notificationFilterGroup);
         tvLiveWeightValue = findViewById(R.id.tvLiveWeightValue);
-        tvLiveWeightTarget = findViewById(R.id.tvLiveWeightTarget);
-        tvLiveWeightDiff = findViewById(R.id.tvLiveWeightDiff);
-        tvLiveWeightMeta = findViewById(R.id.tvLiveWeightMeta);
         cardLiveFeeding = findViewById(R.id.cardLiveFeeding);
         tvLiveFeedTarget = findViewById(R.id.tvLiveFeedTarget);
         tvLiveFeedConsumed = findViewById(R.id.tvLiveFeedConsumed);
@@ -965,54 +962,15 @@ public class MainActivity extends AppCompatActivity implements FirebaseService.D
 
     private void updateLiveWeightCard(DashboardData data) {
         if (tvLiveWeightValue == null) return;
-        FeedingSchedule active = findActiveSchedule(data.getSchedules());
-        float target = active != null ? active.getPortionGrams() : 0f;
-
-        if (active == null) {
-            setTextIfChanged(tvLiveWeightTarget, "Target: no active schedule");
-        } else {
-            String label = active.getLabel() != null && !active.getLabel().isEmpty()
-                    ? active.getLabel() : "Schedule";
-            setTextIfChanged(tvLiveWeightTarget, String.format(Locale.US, "Target: %.1f g  (%s %s)",
-                    target, label, active.getTimeDisplay()));
-        }
-
-        int neutral = ContextCompat.getColor(this, R.color.colorTextSecondary);
         boolean missingOrStale = isWeightMissingOrStale(data);
         if (missingOrStale) pollLanWeightFallback();
         if (!data.isWeightKnown()) {
             setTextIfChanged(tvLiveWeightValue, "-- g");
-            setTextIfChanged(tvLiveWeightDiff, "Difference: --");
-            tvLiveWeightDiff.setTextColor(neutral);
-            setTextIfChanged(tvLiveWeightMeta, "Waiting for feeder reading");
             return;
         }
 
         float weight = data.getCurrentWeight();
         setTextIfChanged(tvLiveWeightValue, String.format(Locale.US, "%.1f g", weight));
-
-        if (target > 0f) {
-            double diff = weight - target;
-            double pct = diff / target * 100.0;
-            double ratio = weight / (double) target;
-            boolean off = ratio < 0.8 || ratio > 1.2;
-            setTextIfChanged(tvLiveWeightDiff, String.format(Locale.US, "Difference: %+.1f g (%+.1f%%)", diff, pct));
-            tvLiveWeightDiff.setTextColor(ContextCompat.getColor(this,
-                    off ? R.color.colorStatusAnomaly : R.color.colorStatusCompleted));
-        } else {
-            setTextIfChanged(tvLiveWeightDiff, "Difference: --");
-            tvLiveWeightDiff.setTextColor(neutral);
-        }
-
-        long at = data.getWeightUpdatedAt();
-        if (at <= 0) {
-            setTextIfChanged(tvLiveWeightMeta, "Live reading from feeder");
-        } else {
-            String time = new SimpleDateFormat("HH:mm:ss", Locale.US).format(new Date(at));
-            boolean stale = System.currentTimeMillis() - at > WEIGHT_STALE_MS;
-            setTextIfChanged(tvLiveWeightMeta, stale ? "Last reading " + time + " (feeder may be offline)"
-                                           : "Updated " + time);
-        }
     }
 
     private void onLiveWeightUpdated(boolean available, float grams, long updatedAt) {
