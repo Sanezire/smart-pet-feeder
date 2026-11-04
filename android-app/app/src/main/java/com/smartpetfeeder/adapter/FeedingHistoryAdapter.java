@@ -111,9 +111,7 @@ public class FeedingHistoryAdapter extends RecyclerView.Adapter<FeedingHistoryAd
         private final CardView cardView;
         private final TextView tvScheduledTime;
         private final TextView tvActualTime;
-        private final TextView tvTargetWeight;
         private final TextView tvDispensedWeight;
-        private final TextView tvDeviation;
         private final TextView tvStatusBadge;
         private final View     statusAccent;
 
@@ -122,9 +120,7 @@ public class FeedingHistoryAdapter extends RecyclerView.Adapter<FeedingHistoryAd
             cardView         = itemView.findViewById(R.id.cardFeedingRecord);
             tvScheduledTime  = itemView.findViewById(R.id.tvScheduledTime);
             tvActualTime     = itemView.findViewById(R.id.tvActualTime);
-            tvTargetWeight   = itemView.findViewById(R.id.tvTargetWeight);
             tvDispensedWeight= itemView.findViewById(R.id.tvDispensedWeight);
-            tvDeviation      = itemView.findViewById(R.id.tvDeviation);
             tvStatusBadge    = itemView.findViewById(R.id.tvStatusBadge);
             statusAccent     = itemView.findViewById(R.id.statusAccent);
 
@@ -176,25 +172,10 @@ public class FeedingHistoryAdapter extends RecyclerView.Adapter<FeedingHistoryAd
             // Same layout for manual and scheduled feeds.
             tvScheduledTime.setText(record.isManualFeed() ? "Manual feed" : "Scheduled: " + sched);
             tvActualTime.setText("Actual: " + (isMissed ? "--:--" : actual));
-            tvTargetWeight.setText(String.format(Locale.US, "Target: %.1fg", record.getDisplayTarget()));
-
             if (isMissed) {
                 tvDispensedWeight.setText("Dispensed: --\nConsumed: --\nRemaining: --");
-                tvDeviation.setVisibility(View.GONE);
             } else {
                 tvDispensedWeight.setText(buildBreakdown(record));
-
-                double deviation = record.getDeviationPercentage();
-                tvDeviation.setVisibility(View.VISIBLE);
-                if (Math.abs(deviation) > 1.0) {
-                    tvDeviation.setText(String.format(Locale.US, "Deviation: %+.1f%%", deviation));
-                    tvDeviation.setTextColor(ContextCompat.getColor(itemView.getContext(),
-                            deviation > 0 ? R.color.colorDeviationHigh : R.color.colorDeviationLow));
-                } else {
-                    tvDeviation.setText("Deviation: Normal");
-                    tvDeviation.setTextColor(ContextCompat.getColor(
-                            itemView.getContext(), R.color.colorTextSecondary));
-                }
             }
 
             switch (record.getStatusEnum()) {
@@ -228,15 +209,15 @@ public class FeedingHistoryAdapter extends RecyclerView.Adapter<FeedingHistoryAd
                     break;
 
                 case ANOMALY:
-                    tvStatusBadge.setText("ANOMALY");
-                    tvStatusBadge.setBackgroundResource(R.drawable.badge_anomaly);
+                    tvStatusBadge.setText("COMPLETED");
+                    tvStatusBadge.setBackgroundResource(R.drawable.badge_completed);
                     tvStatusBadge.setTextColor(ContextCompat.getColor(
-                            itemView.getContext(), R.color.colorStatusAnomaly));
+                            itemView.getContext(), R.color.colorStatusCompleted));
                     cardView.setCardBackgroundColor(ContextCompat.getColor(
-                            itemView.getContext(), R.color.colorCardAlert));
+                            itemView.getContext(), R.color.colorCardNormal));
                     if (statusAccent != null)
                         statusAccent.setBackgroundColor(ContextCompat.getColor(
-                                itemView.getContext(), R.color.colorStatusAnomaly));
+                                itemView.getContext(), R.color.colorStatusCompleted));
                     break;
             }
         }

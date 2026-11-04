@@ -61,15 +61,6 @@
             </LinearLayout>
 
             <TextView
-                android:id="@+id/tvTargetWeight"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="Target: 80.0g"
-                android:textSize="12sp"
-                android:textColor="@color/colorTextSecondary"
-                android:layout_marginBottom="3dp"/>
-
-            <TextView
                 android:id="@+id/tvDispensedWeight"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -80,14 +71,6 @@
                 android:ellipsize="end"
                 android:lineSpacingExtra="1dp"
                 android:layout_marginBottom="3dp"/>
-
-            <TextView
-                android:id="@+id/tvDeviation"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Deviation: Normal"
-                android:textSize="11sp"
-                android:textColor="@color/colorStatusCompleted"/>
 
         </LinearLayout>
 
