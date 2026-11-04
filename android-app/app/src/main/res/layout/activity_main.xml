@@ -1151,35 +1151,41 @@
             <HorizontalScrollView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:layout_marginBottom="12dp"
                 android:paddingStart="16dp"
                 android:paddingEnd="16dp"
+                android:fillViewport="true"
                 android:scrollbars="none">
 
                 <com.google.android.material.button.MaterialButtonToggleGroup
                     android:id="@+id/notificationFilterGroup"
-                    android:layout_width="wrap_content"
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     app:singleSelection="true"
                     app:selectionRequired="true">
 
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/btnFilterAll"
-                        android:layout_width="wrap_content"
+                        android:layout_width="0dp"
                         android:layout_height="34dp"
+                        android:layout_weight="1"
                         android:text="@string/filter_all"
                         style="@style/Widget.SmartPetFeeder.ToggleButton"/>
 
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/btnFilterFeeding"
-                        android:layout_width="wrap_content"
+                        android:layout_width="0dp"
                         android:layout_height="34dp"
+                        android:layout_weight="1"
                         android:text="@string/filter_feeding"
                         style="@style/Widget.SmartPetFeeder.ToggleButton"/>
 
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/btnFilterSystem"
-                        android:layout_width="wrap_content"
+                        android:layout_width="0dp"
                         android:layout_height="34dp"
+                        android:layout_weight="1"
                         android:text="@string/filter_system"
                         style="@style/Widget.SmartPetFeeder.ToggleButton"/>
                 </com.google.android.material.button.MaterialButtonToggleGroup>
@@ -1291,40 +1297,61 @@
             </LinearLayout>
 
             <LinearLayout
+                android:id="@+id/notificationActionBar"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="horizontal"
                 android:gravity="center_vertical"
-                android:layout_marginTop="10dp"
-                android:paddingStart="12dp"
-                android:paddingEnd="12dp">
+                android:layout_marginTop="8dp"
+                android:layout_marginBottom="2dp"
+                android:paddingStart="20dp"
+                android:paddingEnd="20dp">
+
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="Alerts"
+                    android:textSize="15sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/colorTextPrimary"/>
 
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/btnNotifSelect"
-                    style="@style/Widget.MaterialComponents.Button.TextButton"
+                    style="@style/Widget.SmartPetFeeder.Button.Outlined"
                     android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Select"/>
+                    android:layout_height="36dp"
+                    android:minHeight="36dp"
+                    android:minWidth="72dp"
+                    android:paddingStart="12dp"
+                    android:paddingEnd="12dp"
+                    android:paddingTop="0dp"
+                    android:paddingBottom="0dp"
+                    android:text="Select"
+                    android:textSize="12sp"/>
 
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/btnNotifSelectAll"
-                    style="@style/Widget.MaterialComponents.Button.TextButton"
+                    style="@style/Widget.SmartPetFeeder.Button.Text"
                     android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
+                    android:layout_height="36dp"
+                    android:minHeight="36dp"
+                    android:paddingStart="8dp"
+                    android:paddingEnd="8dp"
                     android:text="Select all"
+                    android:textSize="12sp"
                     android:visibility="gone"/>
-
-                <View
-                    android:layout_width="0dp"
-                    android:layout_height="1dp"
-                    android:layout_weight="1"/>
 
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/btnNotifDelete"
-                    style="@style/Widget.MaterialComponents.Button.TextButton"
+                    style="@style/Widget.SmartPetFeeder.Button.Text"
                     android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
+                    android:layout_height="36dp"
+                    android:minHeight="36dp"
+                    android:paddingStart="8dp"
+                    android:paddingEnd="8dp"
                     android:text="Delete"
+                    android:textSize="12sp"
                     android:textColor="@color/colorStatusAnomaly"
                     android:enabled="false"
                     android:visibility="gone"/>
@@ -1334,7 +1361,7 @@
                 android:id="@+id/recyclerNotifications"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="16dp"
+                android:layout_marginTop="4dp"
                 android:paddingStart="16dp"
                 android:paddingEnd="16dp"
                 android:nestedScrollingEnabled="false"

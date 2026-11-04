@@ -85,6 +85,7 @@ public class MainActivity extends AppCompatActivity implements FirebaseService.D
     private LinearLayout emptyState;
     private View       sectionFeedingHistory;
     private View       loadingState, errorState, contentContainer, notificationsContainer, scheduleContainer, settingsContainer;
+    private View       notificationActionBar;
     private SwipeRefreshLayout swipeRefresh;
     private View       noDataNoticeCard;
     private TextView   tvErrorMessage;
@@ -393,6 +394,7 @@ public class MainActivity extends AppCompatActivity implements FirebaseService.D
         recyclerNotifications = findViewById(R.id.recyclerNotifications);
         recyclerHomeSchedules = findViewById(R.id.recyclerHomeSchedules);
         notificationFilterGroup = findViewById(R.id.notificationFilterGroup);
+        notificationActionBar = findViewById(R.id.notificationActionBar);
         tvLiveWeightValue = findViewById(R.id.tvLiveWeightValue);
         cardLiveFeeding = findViewById(R.id.cardLiveFeeding);
         tvLiveFeedTarget = findViewById(R.id.tvLiveFeedTarget);
@@ -2026,6 +2028,10 @@ public class MainActivity extends AppCompatActivity implements FirebaseService.D
         }
         if (recyclerNotifications != null) {
             recyclerNotifications.setVisibility(
+                    all || currentNotificationFilter == NotificationFilter.SYSTEM ? View.VISIBLE : View.GONE);
+        }
+        if (notificationActionBar != null) {
+            notificationActionBar.setVisibility(
                     all || currentNotificationFilter == NotificationFilter.SYSTEM ? View.VISIBLE : View.GONE);
         }
     }
