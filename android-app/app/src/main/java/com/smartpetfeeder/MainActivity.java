@@ -2181,7 +2181,7 @@ public class MainActivity extends AppCompatActivity implements FirebaseService.D
     private void applyRecommendedPortionDefault() {
         if (etSchedulePortion == null) return;
         if (lastRecommendation == null) {
-            etSchedulePortion.setHint("80");
+            etSchedulePortion.setHint("00");
             String cur = etSchedulePortion.getText().toString().trim();
             if (autoFilledSchedulePortion != null && autoFilledSchedulePortion.equals(cur)) {
                 etSchedulePortion.setText("");

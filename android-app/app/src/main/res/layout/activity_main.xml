@@ -1537,7 +1537,7 @@
                         android:id="@+id/etSchedulePortion"
                         android:layout_width="match_parent"
                         android:layout_height="52dp"
-                        android:hint="80"
+                        android:hint="00"
                         android:inputType="numberDecimal"
                         android:background="@drawable/bg_input_field"
                         android:paddingStart="16dp"
