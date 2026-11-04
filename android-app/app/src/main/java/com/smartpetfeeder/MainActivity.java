@@ -94,6 +94,13 @@ public class MainActivity extends AppCompatActivity implements FirebaseService.D
     private MaterialButtonToggleGroup toggleGroup, notificationFilterGroup;
     private TextView tvLiveWeightValue;
     private MaterialButton btnNotifSelect, btnNotifSelectAll, btnNotifDelete;
+    private MaterialButton btnHistorySelect, btnHistorySelectAll, btnHistoryDelete, btnHistoryDeleteAll;
+    private MaterialButton btnHistoryPrevious, btnHistoryNext;
+    private TextView tvHistoryPage;
+    private View historyPagination;
+    private List<FeedingRecord> availableHistoryRecords = new ArrayList<>();
+    private int historyPage = 0;
+    private static final int HISTORY_PAGE_SIZE = 10;
     private TextView   tvConnectionStatus;
     private TextView   tvRecommendedPortion;
     private SwitchMaterial switchThemeMode;
@@ -377,6 +384,14 @@ public class MainActivity extends AppCompatActivity implements FirebaseService.D
         recyclerFeedingHistory = findViewById(R.id.recyclerFeedingHistory);
         sectionFeedingHistory = findViewById(R.id.sectionFeedingHistory);
         emptyState          = findViewById(R.id.emptyState);
+        btnHistorySelect = findViewById(R.id.btnHistorySelect);
+        btnHistorySelectAll = findViewById(R.id.btnHistorySelectAll);
+        btnHistoryDelete = findViewById(R.id.btnHistoryDelete);
+        btnHistoryDeleteAll = findViewById(R.id.btnHistoryDeleteAll);
+        btnHistoryPrevious = findViewById(R.id.btnHistoryPrevious);
+        btnHistoryNext = findViewById(R.id.btnHistoryNext);
+        tvHistoryPage = findViewById(R.id.tvHistoryPage);
+        historyPagination = findViewById(R.id.historyPagination);
         loadingState        = findViewById(R.id.loadingState);
         errorState          = findViewById(R.id.errorState);
         tvErrorMessage      = findViewById(R.id.tvErrorMessage);
@@ -451,6 +466,68 @@ public class MainActivity extends AppCompatActivity implements FirebaseService.D
                         "Record: " + (record.getScheduledTimeDisplay() != null
                                 ? record.getScheduledTimeDisplay() : "--:--"),
                         Toast.LENGTH_SHORT).show());
+        historyAdapter.setSelectionListener((selectionMode, count) -> {
+            btnHistorySelect.setText(selectionMode ? "Cancel" : "Select");
+            btnHistorySelectAll.setVisibility(selectionMode ? View.VISIBLE : View.GONE);
+            btnHistoryDelete.setVisibility(selectionMode ? View.VISIBLE : View.GONE);
+            btnHistoryDelete.setEnabled(count > 0);
+            btnHistoryDelete.setText(count > 0 ? "Delete (" + count + ")" : "Delete");
+            btnHistoryDeleteAll.setVisibility(selectionMode ? View.GONE : View.VISIBLE);
+        });
+        btnHistorySelect.setOnClickListener(v ->
+                historyAdapter.setSelectionMode(!historyAdapter.isSelectionMode()));
+        btnHistorySelectAll.setOnClickListener(v -> historyAdapter.selectAllOnPage());
+        btnHistoryDelete.setOnClickListener(v -> confirmDeleteSelectedHistory());
+        btnHistoryDeleteAll.setOnClickListener(v -> confirmDeleteAllHistory());
+        btnHistoryPrevious.setOnClickListener(v -> {
+            if (historyPage > 0) { historyPage--; renderFeedingHistoryPage(); }
+        });
+        btnHistoryNext.setOnClickListener(v -> {
+            int pages = (availableHistoryRecords.size() + HISTORY_PAGE_SIZE - 1) / HISTORY_PAGE_SIZE;
+            if (historyPage + 1 < pages) { historyPage++; renderFeedingHistoryPage(); }
+        });
+    }
+
+    private void confirmDeleteSelectedHistory() {
+        List<String> ids = historyAdapter.getSelectedIds();
+        if (ids.isEmpty() || firebaseService == null) return;
+        new MaterialAlertDialogBuilder(this)
+                .setTitle(ids.size() == 1 ? "Delete feeding record?" : "Delete " + ids.size() + " feeding records?")
+                .setMessage("This permanently removes the selected records from Firebase.")
+                .setNegativeButton("Cancel", null)
+                .setPositiveButton("Delete", (dialog, which) -> firebaseService.deleteFeedingRecords(ids,
+                        new FirebaseService.AckCallback() {
+                            @Override public void onAcknowledged() {
+                                historyAdapter.setSelectionMode(false);
+                                Toast.makeText(MainActivity.this, "Feeding records deleted", Toast.LENGTH_SHORT).show();
+                            }
+                            @Override public void onFailed(String error) {
+                                Toast.makeText(MainActivity.this, "Could not delete feeding records: " + error,
+                                        Toast.LENGTH_LONG).show();
+                            }
+                        }))
+                .show();
+    }
+
+    private void confirmDeleteAllHistory() {
+        if (firebaseService == null || availableHistoryRecords.isEmpty()) return;
+        new MaterialAlertDialogBuilder(this)
+                .setTitle("Delete all feeding history?")
+                .setMessage("This permanently deletes all feeding records from Firebase and cannot be undone.")
+                .setNegativeButton("Cancel", null)
+                .setPositiveButton("Delete all", (dialog, which) -> firebaseService.deleteAllFeedingRecords(
+                        new FirebaseService.AckCallback() {
+                            @Override public void onAcknowledged() {
+                                historyPage = 0;
+                                historyAdapter.setSelectionMode(false);
+                                Toast.makeText(MainActivity.this, "Feeding history deleted", Toast.LENGTH_SHORT).show();
+                            }
+                            @Override public void onFailed(String error) {
+                                Toast.makeText(MainActivity.this, "Could not delete feeding history: " + error,
+                                        Toast.LENGTH_LONG).show();
+                            }
+                        }))
+                .show();
     }
 
     private void setupHomeSchedules() {
@@ -1139,6 +1216,7 @@ public class MainActivity extends AppCompatActivity implements FirebaseService.D
             if      (checkedId == R.id.btnDay)   currentFilter = "DAY";
             else if (checkedId == R.id.btnWeek)  currentFilter = "WEEK";
             else if (checkedId == R.id.btnMonth) currentFilter = "MONTH";
+            historyPage = 0;
             DashboardData cached = latestDashboardData;
             if (cached != null) updateFeedingHistory(cached.getFeedingHistory());
         });
@@ -2383,26 +2461,36 @@ public class MainActivity extends AppCompatActivity implements FirebaseService.D
     }
 
     private void updateFeedingHistory(List<FeedingRecord> records) {
-        if (records == null || records.isEmpty()) {
+        availableHistoryRecords = records == null ? new ArrayList<>() : new ArrayList<>(records);
+        int pageCount = (availableHistoryRecords.size() + HISTORY_PAGE_SIZE - 1) / HISTORY_PAGE_SIZE;
+        if (historyPage >= pageCount) historyPage = Math.max(0, pageCount - 1);
+        if (availableHistoryRecords.isEmpty()) {
             setVisibleIfChanged(emptyState, true);
             setVisibleIfChanged(recyclerFeedingHistory, false);
             historyAdapter.setRecords(new ArrayList<>());
+            historyAdapter.setSelectionMode(false);
         } else {
             setVisibleIfChanged(emptyState, false);
             setVisibleIfChanged(recyclerFeedingHistory, true);
-            historyAdapter.setRecords(filterRecords(records));
+            renderFeedingHistoryPage();
         }
+        btnHistorySelect.setEnabled(!availableHistoryRecords.isEmpty());
+        btnHistoryDeleteAll.setEnabled(!availableHistoryRecords.isEmpty());
+        historyPagination.setVisibility(pageCount > 1 ? View.VISIBLE : View.GONE);
     }
 
-    private List<FeedingRecord> filterRecords(List<FeedingRecord> records) {
-        int limit;
-        switch (currentFilter) {
-            case "WEEK":  limit = 28; break;
-            case "MONTH": limit = 120; break;
-            default:      limit = 8;  break;
+    private void renderFeedingHistoryPage() {
+        int start = historyPage * HISTORY_PAGE_SIZE;
+        int end = Math.min(start + HISTORY_PAGE_SIZE, availableHistoryRecords.size());
+        List<FeedingRecord> page = new ArrayList<>(availableHistoryRecords.subList(start, end));
+        historyAdapter.setRecords(page);
+        if (tvHistoryPage != null) {
+            tvHistoryPage.setText((start + 1) + "–" + end + " of " + availableHistoryRecords.size());
         }
-        int capped = Math.min(limit, 10);
-        return records.size() > capped ? records.subList(0, capped) : records;
+        if (btnHistoryPrevious != null) btnHistoryPrevious.setEnabled(historyPage > 0);
+        int pageCount = (availableHistoryRecords.size() + HISTORY_PAGE_SIZE - 1) / HISTORY_PAGE_SIZE;
+        if (btnHistoryNext != null) btnHistoryNext.setEnabled(historyPage + 1 < pageCount);
+        if (historyPagination != null) historyPagination.setVisibility(pageCount > 1 ? View.VISIBLE : View.GONE);
     }
 
     private void updateLastUpdatedTime(long epochMs) {

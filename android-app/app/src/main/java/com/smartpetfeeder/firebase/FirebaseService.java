@@ -405,6 +405,36 @@ public class FirebaseService {
                 .addOnFailureListener(e -> Log.e(TAG, "Failed to save record", e));
     }
 
+    public void deleteFeedingRecords(List<String> feedingIds, AckCallback callback) {
+        if (feedingIds == null || feedingIds.isEmpty()) {
+            if (callback != null) callback.onFailed("No feeding records selected");
+            return;
+        }
+        Map<String, Object> updates = new HashMap<>();
+        for (String id : feedingIds) {
+            if (id != null && !id.isEmpty()) updates.put(PATH_FEEDING_RECORDS + "/" + id, null);
+        }
+        if (updates.isEmpty()) {
+            if (callback != null) callback.onFailed("No valid feeding record IDs");
+            return;
+        }
+        rootRef.updateChildren(updates)
+                .addOnSuccessListener(v -> { if (callback != null) callback.onAcknowledged(); })
+                .addOnFailureListener(e -> {
+                    Log.e(TAG, "Failed to delete feeding records", e);
+                    if (callback != null) callback.onFailed(e.getMessage());
+                });
+    }
+
+    public void deleteAllFeedingRecords(AckCallback callback) {
+        recordsRef.removeValue()
+                .addOnSuccessListener(v -> { if (callback != null) callback.onAcknowledged(); })
+                .addOnFailureListener(e -> {
+                    Log.e(TAG, "Failed to delete all feeding records", e);
+                    if (callback != null) callback.onFailed(e.getMessage());
+                });
+    }
+
     private void writeScheduleDirect(FeedingSchedule schedule) {
         if (schedule.getScheduleId() == null || schedule.getScheduleId().isEmpty()) {
             schedule.setScheduleId(schedulesRef.push().getKey());

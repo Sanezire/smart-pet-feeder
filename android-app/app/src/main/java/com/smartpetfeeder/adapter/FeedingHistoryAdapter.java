@@ -3,6 +3,7 @@ package com.smartpetfeeder.adapter;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.CheckBox;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
@@ -17,11 +18,57 @@ import com.smartpetfeeder.model.FeedingRecord;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.LinkedHashSet;
+import java.util.Set;
 
 public class FeedingHistoryAdapter extends RecyclerView.Adapter<FeedingHistoryAdapter.ViewHolder> {
 
     private List<FeedingRecord> records = new ArrayList<>();
     private final java.util.Map<String, Boolean> boundProgress = new java.util.HashMap<>();
+    private final Set<String> selectedIds = new LinkedHashSet<>();
+    private boolean selectionMode;
+    private OnSelectionListener selectionListener;
+
+    public interface OnSelectionListener {
+        void onSelectionChanged(boolean selectionMode, int selectedCount);
+    }
+
+    public void setSelectionListener(OnSelectionListener listener) {
+        selectionListener = listener;
+        dispatchSelection();
+    }
+
+    public boolean isSelectionMode() { return selectionMode; }
+    public int getSelectedCount() { return selectedIds.size(); }
+    public List<String> getSelectedIds() { return new ArrayList<>(selectedIds); }
+
+    public void setSelectionMode(boolean enabled) {
+        if (selectionMode == enabled && (enabled || selectedIds.isEmpty())) return;
+        selectionMode = enabled;
+        if (!enabled) selectedIds.clear();
+        notifyDataSetChanged();
+        dispatchSelection();
+    }
+
+    public void selectAllOnPage() {
+        for (FeedingRecord record : records) {
+            if (record.getFeedingId() != null) selectedIds.add(record.getFeedingId());
+        }
+        notifyDataSetChanged();
+        dispatchSelection();
+    }
+
+    private void toggleSelected(FeedingRecord record) {
+        String id = record.getFeedingId();
+        if (id == null) return;
+        if (!selectedIds.add(id)) selectedIds.remove(id);
+        notifyDataSetChanged();
+        dispatchSelection();
+    }
+
+    private void dispatchSelection() {
+        if (selectionListener != null) selectionListener.onSelectionChanged(selectionMode, selectedIds.size());
+    }
 
     public void refreshAll() {
         notifyItemRangeChanged(0, records.size());
@@ -114,6 +161,7 @@ public class FeedingHistoryAdapter extends RecyclerView.Adapter<FeedingHistoryAd
         private final TextView tvDispensedWeight;
         private final TextView tvStatusBadge;
         private final View     statusAccent;
+        private final CheckBox checkBox;
 
         ViewHolder(View itemView) {
             super(itemView);
@@ -123,12 +171,26 @@ public class FeedingHistoryAdapter extends RecyclerView.Adapter<FeedingHistoryAd
             tvDispensedWeight= itemView.findViewById(R.id.tvDispensedWeight);
             tvStatusBadge    = itemView.findViewById(R.id.tvStatusBadge);
             statusAccent     = itemView.findViewById(R.id.statusAccent);
+            checkBox         = itemView.findViewById(R.id.cbFeedingRecord);
 
             itemView.setOnClickListener(v -> {
                 int pos = getAdapterPosition();
-                if (pos != RecyclerView.NO_POSITION && itemClickListener != null) {
-                    itemClickListener.onItemClick(records.get(pos));
+                if (pos != RecyclerView.NO_POSITION) {
+                    FeedingRecord record = records.get(pos);
+                    if (selectionMode) toggleSelected(record);
+                    else if (itemClickListener != null) itemClickListener.onItemClick(record);
                 }
+            });
+            itemView.setOnLongClickListener(v -> {
+                int pos = getAdapterPosition();
+                if (pos == RecyclerView.NO_POSITION) return false;
+                if (!selectionMode) setSelectionMode(true);
+                toggleSelected(records.get(pos));
+                return true;
+            });
+            if (checkBox != null) checkBox.setOnClickListener(v -> {
+                int pos = getAdapterPosition();
+                if (pos != RecyclerView.NO_POSITION) toggleSelected(records.get(pos));
             });
         }
 
@@ -162,6 +224,11 @@ public class FeedingHistoryAdapter extends RecyclerView.Adapter<FeedingHistoryAd
         }
 
         void bind(FeedingRecord record) {
+            if (checkBox != null) {
+                checkBox.setVisibility(selectionMode ? View.VISIBLE : View.GONE);
+                checkBox.setOnCheckedChangeListener(null);
+                checkBox.setChecked(record.getFeedingId() != null && selectedIds.contains(record.getFeedingId()));
+            }
             String sched = record.getScheduledTimeDisplay() != null
                     ? record.getScheduledTimeDisplay() : "--:--";
             String actual = record.getActualTimeDisplay() != null
