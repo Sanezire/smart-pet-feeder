@@ -505,9 +505,15 @@ public class FirebaseService {
         profile.setUpdatedAt(System.currentTimeMillis());
         petProfile = profile;
         petName    = profile.getName();
+        Map<String, Object> profileData = new HashMap<>();
+        profileData.put("name", profile.getName());
+        profileData.put("type", profile.getType());
+        profileData.put("ownerUid", uid);
+        profileData.put("updatedAt", profile.getUpdatedAt());
         directInFlight++;
         dispatchSyncState(false);
-        petProfileRef.setValue(profile)
+        // Replace the record so legacy fields (age, weight, activity, feedings) are removed.
+        petProfileRef.setValue(profileData)
                 .addOnSuccessListener(u -> {
                     directInFlight = Math.max(0, directInFlight - 1);
                     deviceStatusRef.child("petName").setValue(profile.getName());

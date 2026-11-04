@@ -2295,28 +2295,45 @@ public class MainActivity extends AppCompatActivity implements FirebaseService.D
     private void showManualFeedDialog() {
         if (firebaseService == null) return;
         float rec = firebaseService.getRecommendedPortion();
-        EditText input = new EditText(this);
-        input.setInputType(InputType.TYPE_CLASS_NUMBER | InputType.TYPE_NUMBER_FLAG_DECIMAL);
-        input.setHint("Portion grams");
-        input.setText(String.format(Locale.US, "%.0f", rec));
-        new MaterialAlertDialogBuilder(this)
-                .setTitle("Manual feed")
-                .setMessage("Set the portion amount before dispensing.")
-                .setView(input)
-                .setPositiveButton("Feed now", (d, w) -> {
+        View view = getLayoutInflater().inflate(R.layout.dialog_manual_feed, null);
+        EditText input = view.findViewById(R.id.etManualPortion);
+        input.setText(String.format(Locale.US, "%.0f", rec > 0f ? rec : 80f));
+        MaterialButton decrease = view.findViewById(R.id.btnPortionDecrease);
+        MaterialButton increase = view.findViewById(R.id.btnPortionIncrease);
+        View.OnClickListener stepPortion = button -> {
+            try {
+                float value = Float.parseFloat(input.getText().toString().trim());
+                value += button == increase ? 5f : -5f;
+                if (value > 0f) input.setText(String.format(Locale.US, "%.0f", value));
+            } catch (NumberFormatException ignored) {
+                input.setText("5");
+            }
+            input.setSelection(input.getText().length());
+        };
+        decrease.setOnClickListener(stepPortion);
+        increase.setOnClickListener(stepPortion);
+
+        AlertDialog dialog = new MaterialAlertDialogBuilder(this)
+                .setTitle(R.string.manual_feed)
+                .setView(view)
+                .setPositiveButton("Feed now", null)
+                .setNegativeButton("Cancel", null)
+                .create();
+        dialog.setOnShowListener(d -> dialog.getButton(AlertDialog.BUTTON_POSITIVE)
+                .setOnClickListener(button -> {
                     try {
-                        float grams = Float.parseFloat(input.getText().toString());
-                        if (grams <= 0f) {
-                            Toast.makeText(this, "Portion must be greater than 0g", Toast.LENGTH_SHORT).show();
+                        float grams = Float.parseFloat(input.getText().toString().trim());
+                        if (Float.isNaN(grams) || Float.isInfinite(grams) || grams <= 0f) {
+                            input.setError("Enter an amount greater than 0 g");
                             return;
                         }
                         triggerManualFeedWithDeviceTest(grams);
-                    } catch (Exception ex) {
-                        Toast.makeText(this, "Invalid grams value", Toast.LENGTH_SHORT).show();
+                        dialog.dismiss();
+                    } catch (NumberFormatException ex) {
+                        input.setError("Enter a valid amount in grams");
                     }
-                })
-                .setNegativeButton("Cancel", null)
-                .show();
+                }));
+        dialog.show();
     }
 
     private void showConfigDialog() {

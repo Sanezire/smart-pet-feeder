@@ -109,8 +109,7 @@ public class PetProfile {
 
     @Exclude
     public boolean isValid() {
-        return name != null && !name.trim().isEmpty() && weightKg > 0f && ageYears >= 0f
-                && feedingsPerDay >= 0 && feedingsPerDay <= 6
+        return name != null && !name.trim().isEmpty()
                 && (TYPE_DOG.equals(type) || TYPE_CAT.equals(type));
     }
 }
