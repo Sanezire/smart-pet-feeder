@@ -2275,82 +2275,14 @@ public class MainActivity extends AppCompatActivity implements FirebaseService.D
 
         View view = getLayoutInflater().inflate(R.layout.dialog_pet_profile, null);
         EditText etName   = view.findViewById(R.id.etPetName);
-        EditText etAge    = view.findViewById(R.id.etPetAge);
-        MaterialButtonToggleGroup ageUnitGroup = view.findViewById(R.id.toggleGroupAgeUnit);
-        EditText etWeight = view.findViewById(R.id.etPetWeight);
         MaterialButtonToggleGroup typeGroup     = view.findViewById(R.id.toggleGroupPetType);
-        MaterialButtonToggleGroup activityGroup = view.findViewById(R.id.toggleGroupPetActivity);
-        MaterialButtonToggleGroup feedingsGroup = view.findViewById(R.id.toggleGroupFeedings);
-        TextView tvFeedingsPreview = view.findViewById(R.id.tvFeedingsPreview);
-        final int[] feedBtnIds = {R.id.btnFeed1, R.id.btnFeed2, R.id.btnFeed3,
-                R.id.btnFeed4, R.id.btnFeed5, R.id.btnFeed6};
-
-        int initialFeedings = existing != null && existing.getFeedingsPerDay() >= 1
-                ? existing.getFeedingsPerDay()
-                : (enabledFeedingsPerDay >= 1
-                        ? Math.min(enabledFeedingsPerDay, PetFeedingCalculator.MAX_FEEDINGS_PER_DAY)
-                        : PetFeedingCalculator.DEFAULT_FEEDINGS_PER_DAY);
-        feedingsGroup.check(feedBtnIds[initialFeedings - 1]);
 
         if (existing != null) {
             etName.setText(existing.getName());
-            int existingMonths = existing.getAgeMonths();
-            if (existingMonths < 12) {
-                ageUnitGroup.check(R.id.btnAgeMonths);
-                etAge.setText(String.valueOf(existingMonths));
-            } else {
-                ageUnitGroup.check(R.id.btnAgeYears);
-                etAge.setText(formatNumber(Math.round(existingMonths / 12f * 100f) / 100f));
-            }
-            etWeight.setText(formatNumber(existing.getWeightKg()));
             typeGroup.check(existing.isCat() ? R.id.btnPetCat : R.id.btnPetDog);
-            if (PetProfile.ACTIVITY_LOW.equals(existing.getActivity())) {
-                activityGroup.check(R.id.btnActivityLow);
-            } else if (PetProfile.ACTIVITY_HIGH.equals(existing.getActivity())) {
-                activityGroup.check(R.id.btnActivityHigh);
-            } else {
-                activityGroup.check(R.id.btnActivityModerate);
-            }
         } else {
             typeGroup.check(R.id.btnPetDog);
-            activityGroup.check(R.id.btnActivityModerate);
-            ageUnitGroup.check(R.id.btnAgeYears);
         }
-
-        Runnable refreshPreview = () -> {
-            PetProfile p = buildPetProfileQuietly(etName, etAge, ageUnitGroup, etWeight, typeGroup,
-                    activityGroup, feedingsGroup, feedBtnIds);
-            PetFeedingCalculator.Result r = PetFeedingCalculator.calculate(p, 0);
-            if (r == null) {
-                tvFeedingsPreview.setText("");
-            } else {
-                tvFeedingsPreview.setText(getString(R.string.pet_profile_feedings_preview,
-                        Math.round(r.portionGrams), Math.round(r.dailyGrams), r.feedingsPerDay));
-            }
-        };
-        android.text.TextWatcher previewWatcher = new android.text.TextWatcher() {
-            @Override public void beforeTextChanged(CharSequence s, int a, int b, int c) {}
-            @Override public void onTextChanged(CharSequence s, int a, int b, int c) {}
-            @Override public void afterTextChanged(android.text.Editable e) { refreshPreview.run(); }
-        };
-        etAge.addTextChangedListener(previewWatcher);
-        ageUnitGroup.addOnButtonCheckedListener((g, id, checked) -> {
-            if (!checked) return;
-            int m = parseAgeMonths(etAge.getText().toString(),
-                    id == R.id.btnAgeYears);
-            if (m > 0) {
-                etAge.setText(id == R.id.btnAgeMonths
-                        ? String.valueOf(m)
-                        : formatNumber(Math.round(m / 12f * 100f) / 100f));
-                etAge.setSelection(etAge.getText().length());
-            }
-            refreshPreview.run();
-        });
-        etWeight.addTextChangedListener(previewWatcher);
-        feedingsGroup.addOnButtonCheckedListener((g, id, checked) -> { if (checked) refreshPreview.run(); });
-        typeGroup.addOnButtonCheckedListener((g, id, checked) -> { if (checked) refreshPreview.run(); });
-        activityGroup.addOnButtonCheckedListener((g, id, checked) -> { if (checked) refreshPreview.run(); });
-        refreshPreview.run();
 
         AlertDialog dialog = new MaterialAlertDialogBuilder(this)
                 .setTitle(existing == null ? R.string.pet_profile_setup_title
@@ -2365,16 +2297,30 @@ public class MainActivity extends AppCompatActivity implements FirebaseService.D
                 dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v -> {
                     String type = typeGroup.getCheckedButtonId() == R.id.btnPetCat
                             ? PetProfile.TYPE_CAT : PetProfile.TYPE_DOG;
-                    String activity;
-                    int actId = activityGroup.getCheckedButtonId();
-                    if (actId == R.id.btnActivityLow) activity = PetProfile.ACTIVITY_LOW;
-                    else if (actId == R.id.btnActivityHigh) activity = PetProfile.ACTIVITY_HIGH;
-                    else activity = PetProfile.ACTIVITY_MODERATE;
+                    String name = etName.getText().toString().trim();
+                    if (name.isEmpty()) {
+                        etName.setError(getString(R.string.pet_error_name_required));
+                        return;
+                    }
+                    if (name.length() > PetFeedingCalculator.MAX_NAME_LENGTH) {
+                        etName.setError(getString(R.string.pet_error_name_too_long,
+                                PetFeedingCalculator.MAX_NAME_LENGTH));
+                        return;
+                    }
 
-                    int feedings = selectedFeedings(feedingsGroup, feedBtnIds);
-                    PetProfile profile = validatePetProfileInput(
-                            etName, etAge, ageUnitGroup, etWeight, type, activity, feedings);
-                    if (profile == null) return;
+                    int feedings = existing != null && existing.getFeedingsPerDay() >= 1
+                            ? Math.min(existing.getFeedingsPerDay(), PetFeedingCalculator.MAX_FEEDINGS_PER_DAY)
+                            : (enabledFeedingsPerDay >= 1
+                                    ? Math.min(enabledFeedingsPerDay, PetFeedingCalculator.MAX_FEEDINGS_PER_DAY)
+                                    : PetFeedingCalculator.DEFAULT_FEEDINGS_PER_DAY);
+                    int ageMonths = existing != null ? existing.getAgeMonths() : 12;
+                    float weight = existing != null && existing.getWeightKg() >= PetFeedingCalculator.MIN_WEIGHT_KG
+                            ? existing.getWeightKg() : (PetProfile.TYPE_CAT.equals(type) ? 4f : 10f);
+                    String activity = existing != null && existing.getActivity() != null
+                            ? existing.getActivity() : PetProfile.ACTIVITY_MODERATE;
+                    PetProfile profile = new PetProfile(name, type, ageMonths / 12f,
+                            weight, activity, feedings);
+                    profile.setAgeMonths(ageMonths);
 
                     if (firebaseService.isPhoneOnline()) {
                         Toast.makeText(MainActivity.this, R.string.sync_saving,
@@ -2398,118 +2344,6 @@ public class MainActivity extends AppCompatActivity implements FirebaseService.D
                 }));
         petProfileDialog = dialog;
         dialog.show();
-    }
-
-    private PetProfile validatePetProfileInput(EditText etName, EditText etAge,
-                                               MaterialButtonToggleGroup ageUnitGroup, EditText etWeight,
-                                               String type, String activity, int feedings) {
-        boolean ok = true;
-
-        String name = etName.getText().toString().trim();
-        if (name.isEmpty()) {
-            etName.setError(getString(R.string.pet_error_name_required));
-            ok = false;
-        } else if (name.length() > PetFeedingCalculator.MAX_NAME_LENGTH) {
-            etName.setError(getString(R.string.pet_error_name_too_long,
-                    PetFeedingCalculator.MAX_NAME_LENGTH));
-            ok = false;
-        }
-
-        int ageMonths = 0;
-        boolean inMonths = ageUnitGroup.getCheckedButtonId() == R.id.btnAgeMonths;
-        String ageText = etAge.getText().toString().trim().replace(',', '.');
-        if (ageText.isEmpty()) {
-            etAge.setError(getString(R.string.pet_error_age_required));
-            ok = false;
-        } else {
-            ageMonths = parseAgeMonths(ageText, inMonths);
-            if (ageMonths < 0) {
-                etAge.setError(inMonths
-                        ? getString(R.string.pet_error_months_range, MAX_AGE_MONTHS_INPUT)
-                        : getString(R.string.pet_error_age_range,
-                                (int) PetFeedingCalculator.MAX_AGE_YEARS));
-                ok = false;
-            }
-        }
-
-        float weight = 0f;
-        float maxWeight = PetFeedingCalculator.maxWeightFor(type);
-        String weightText = etWeight.getText().toString().trim().replace(',', '.');
-        if (weightText.isEmpty()) {
-            etWeight.setError(getString(R.string.pet_error_weight_required));
-            ok = false;
-        } else {
-            try {
-                weight = Float.parseFloat(weightText);
-                if (Float.isNaN(weight) || weight < PetFeedingCalculator.MIN_WEIGHT_KG
-                        || weight > maxWeight) {
-                    etWeight.setError(getString(R.string.pet_error_weight_range,
-                            formatNumber(PetFeedingCalculator.MIN_WEIGHT_KG), formatNumber(maxWeight)));
-                    ok = false;
-                }
-            } catch (NumberFormatException e) {
-                etWeight.setError(getString(R.string.pet_error_weight_range,
-                        formatNumber(PetFeedingCalculator.MIN_WEIGHT_KG), formatNumber(maxWeight)));
-                ok = false;
-            }
-        }
-
-        if (!ok) return null;
-        PetProfile profile = new PetProfile(name, type, ageMonths / 12f, weight, activity, feedings);
-        profile.setAgeMonths(ageMonths);
-        return profile;
-    }
-
-    private static final int MAX_AGE_MONTHS_INPUT = 24;
-
-    private static int parseAgeMonths(String text, boolean inMonths) {
-        try {
-            float v = Float.parseFloat(text.trim().replace(',', '.'));
-            if (Float.isNaN(v)) return -1;
-            if (inMonths) {
-                if (v != Math.floor(v) || v < 1f || v > MAX_AGE_MONTHS_INPUT) return -1;
-                return (int) v;
-            }
-            if (v < 0.1f || v > PetFeedingCalculator.MAX_AGE_YEARS) return -1;
-            return Math.max(1, Math.round(v * PetFeedingCalculator.MONTHS_PER_YEAR));
-        } catch (NumberFormatException e) {
-            return -1;
-        }
-    }
-
-    private static int selectedFeedings(MaterialButtonToggleGroup group, int[] ids) {
-        int checked = group.getCheckedButtonId();
-        for (int i = 0; i < ids.length; i++) if (ids[i] == checked) return i + 1;
-        return PetFeedingCalculator.DEFAULT_FEEDINGS_PER_DAY;
-    }
-
-    private PetProfile buildPetProfileQuietly(EditText etName, EditText etAge,
-                                              MaterialButtonToggleGroup ageUnitGroup, EditText etWeight,
-                                              MaterialButtonToggleGroup typeGroup,
-                                              MaterialButtonToggleGroup activityGroup,
-                                              MaterialButtonToggleGroup feedingsGroup,
-                                              int[] feedBtnIds) {
-        try {
-            int ageMonths = parseAgeMonths(etAge.getText().toString(),
-                    ageUnitGroup.getCheckedButtonId() == R.id.btnAgeMonths);
-            if (ageMonths < 0) return null;
-            float weight = Float.parseFloat(etWeight.getText().toString().trim().replace(',', '.'));
-            String type = typeGroup.getCheckedButtonId() == R.id.btnPetCat
-                    ? PetProfile.TYPE_CAT : PetProfile.TYPE_DOG;
-            if (weight < PetFeedingCalculator.MIN_WEIGHT_KG
-                    || weight > PetFeedingCalculator.maxWeightFor(type)) return null;
-            int actId = activityGroup.getCheckedButtonId();
-            String activity = actId == R.id.btnActivityLow ? PetProfile.ACTIVITY_LOW
-                    : actId == R.id.btnActivityHigh ? PetProfile.ACTIVITY_HIGH
-                    : PetProfile.ACTIVITY_MODERATE;
-            String name = etName.getText().toString().trim();
-            PetProfile p = new PetProfile(name.isEmpty() ? "Pet" : name, type, ageMonths / 12f,
-                    weight, activity, selectedFeedings(feedingsGroup, feedBtnIds));
-            p.setAgeMonths(ageMonths);
-            return p;
-        } catch (NumberFormatException e) {
-            return null;
-        }
     }
 
     private void showManualFeedDialog() {
