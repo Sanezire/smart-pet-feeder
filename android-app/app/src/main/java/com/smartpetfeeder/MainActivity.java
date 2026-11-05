@@ -2072,8 +2072,8 @@ public class MainActivity extends AppCompatActivity implements FirebaseService.D
             PetFeederMessagingService.showFeedingFinal(this, r.getFeedingId(),
                     r.isManualFeed() ? "Manual feeding complete" : "Scheduled feeding complete",
                     String.format(Locale.US,
-                            "Target: %.1f g\nDispensed: %s\nConsumed: %.1f g\nRemaining: %.1f g",
-                            r.getDisplayTarget(), dispensed,
+                            "Dispensed: %s\nConsumed: %.1f g\nRemaining: %.1f g",
+                            dispensed,
                             r.getDisplayConsumedWeight(), r.getRemainingWeight()));
             notified.add(r.getFeedingId());
             changed = true;
