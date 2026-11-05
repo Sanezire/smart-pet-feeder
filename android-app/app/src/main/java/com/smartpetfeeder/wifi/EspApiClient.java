@@ -45,7 +45,19 @@ public class EspApiClient {
 
     public interface ProgressCallback extends Callback {
         void onProgress(String statusMessage);
+
+        /**
+         * The feeder accepted the credentials, then the phone lost its connection to the setup
+         * hotspot (normal while the feeder switches channel to join the router), so the result
+         * could not be read from the feeder itself.
+         */
+        default void onFeederOutOfReach(String ssid) {
+            onError("Lost contact with the feeder after it received the WiFi details.");
+        }
     }
+
+    /** Stop polling after this many errors in a row that mean the phone's network to the feeder is gone. */
+    private static final int PROVISION_NET_LOSS_LIMIT = 3;
 
     public EspApiClient(String baseUrl) {
         this.baseUrl = baseUrl.endsWith("/")
@@ -71,8 +83,16 @@ public class EspApiClient {
                 if (uid != null) body.put("uid", uid);
 
                 postProgress(callback, "Sending credentials to feeder…");
-                JSONObject response = post("/configure", body.toString(),
-                        TIMEOUT_CONNECT, TIMEOUT_CONFIGURE);
+                JSONObject response;
+                try {
+                    response = post("/configure", body.toString(), TIMEOUT_CONNECT, TIMEOUT_CONFIGURE);
+                } catch (Exception e) {
+                    if (!isNetworkLoss(e) && !(e instanceof java.net.SocketTimeoutException)) throw e;
+                    // The feeder may already have saved the details and dropped the hotspot before replying.
+                    Log.w(TAG, "No reply to /configure; result unknown", e);
+                    mainHandler.post(() -> callback.onFeederOutOfReach(ssid));
+                    return;
+                }
 
                 if (!"connecting".equals(response.optString("status", ""))
                         && response.optBoolean("connected", false)
@@ -84,10 +104,13 @@ public class EspApiClient {
                 postProgress(callback, "Feeder is joining WiFi…");
                 long deadline = System.currentTimeMillis() + PROVISION_TOTAL_MS;
                 Exception lastError = null;
+                int netLossInARow = 0;
                 while (System.currentTimeMillis() < deadline) {
                     Thread.sleep(PROVISION_POLL_MS);
                     try {
                         JSONObject status = get("/status", TIMEOUT_CONNECT, TIMEOUT_READ);
+                        netLossInARow = 0;
+                        lastError = null;
                         if (status.optBoolean("connected", false)
                                 && !status.optString("sta_ip", status.optString("ip", "")).isEmpty()) {
                             postProgress(callback, "Device connected. Finishing provisioning…");
@@ -104,10 +127,18 @@ public class EspApiClient {
                         }
                     } catch (Exception e) {
                         lastError = e;
+                        netLossInARow = isNetworkLoss(e) ? netLossInARow + 1 : 0;
+                        if (netLossInARow >= PROVISION_NET_LOSS_LIMIT) break;
                     }
                 }
-                String reason = lastError == null ? "Connection timed out" : friendlyError(lastError.getMessage());
-                mainHandler.post(() -> callback.onError(reason));
+                if (lastError != null) {
+                    // Credentials were accepted, but the feeder can no longer be reached over the setup
+                    // hotspot, so its result is unknown here; the caller checks another way.
+                    Log.w(TAG, "Feeder unreachable after credentials were sent", lastError);
+                    mainHandler.post(() -> callback.onFeederOutOfReach(ssid));
+                    return;
+                }
+                mainHandler.post(() -> callback.onError("Connection timed out"));
 
             } catch (Exception e) {
                 Log.e(TAG, "configureWifi error", e);
@@ -115,6 +146,17 @@ public class EspApiClient {
                         friendlyError(e.getMessage())));
             }
         });
+    }
+
+    /** True for errors that mean the phone has no route to the feeder any more (it left the setup hotspot). */
+    static boolean isNetworkLoss(Exception e) {
+        if (e instanceof java.net.NoRouteToHostException) return true;
+        String m = e.getMessage();
+        if (m == null) return false;
+        String lower = m.toLowerCase(Locale.US);
+        return lower.contains("enonet") || lower.contains("not on the network")
+                || lower.contains("enetunreach") || lower.contains("network is unreachable")
+                || lower.contains("ehostunreach") || lower.contains("no route to host");
     }
 
     public void getStatus(Callback callback) {
@@ -413,6 +455,8 @@ public class EspApiClient {
     private String friendlyError(String raw) {
         if (raw == null) return "Unknown error";
         String lower = raw.toLowerCase(Locale.US);
+        if (lower.contains("enonet") || lower.contains("not on the network"))
+            return "Your phone is not connected to the feeder's PetFeeder_Setup WiFi.";
         if (lower.contains("invalid provisioning token"))
             return "Provisioning session expired. Please tap Configure again.";
         if (raw.contains("timeout") || raw.contains("timed out"))

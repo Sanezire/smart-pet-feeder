@@ -244,6 +244,17 @@ public class FirebaseService {
 
     public FirebaseService() { this(null); }
 
+    /** The app's database instance; persistence is enabled once, before first use. */
+    public static synchronized FirebaseDatabase sharedDatabase() {
+        FirebaseDatabase db = FirebaseDatabase.getInstance(
+                "https://smart-ped-feeder-default-rtdb.firebaseio.com");
+        if (!sPersistenceEnabled) {
+            db.setPersistenceEnabled(true);
+            sPersistenceEnabled = true;
+        }
+        return db;
+    }
+
     public static String currentUid() {
         FirebaseUser u = FirebaseAuth.getInstance().getCurrentUser();
         return u != null ? u.getUid() : null;
@@ -260,13 +271,8 @@ public class FirebaseService {
     public FirebaseService(Context context) {
         uid = currentUid();
         if (uid == null) throw new IllegalStateException("FirebaseService requires a signed-in user");
-        database = FirebaseDatabase.getInstance(
-                "https://smart-ped-feeder-default-rtdb.firebaseio.com");
-        if (!sPersistenceEnabled) {
-            database.setPersistenceEnabled(true);
-            sPersistenceEnabled = true;
-        }
-        userRef         = userRef(database, uid);
+        database = sharedDatabase();
+        userRef        = userRef(database, uid);
         recordsRef      = userRef.child(PATH_FEEDING_RECORDS);
         schedulesRef    = userRef.child(PATH_SCHEDULES);
         deviceStatusRef = userRef.child(PATH_DEVICE_STATUS);

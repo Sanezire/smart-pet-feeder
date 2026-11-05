@@ -11,6 +11,8 @@ import android.net.wifi.WifiManager;
 import android.net.wifi.WifiNetworkSpecifier;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.text.TextUtils;
 import android.text.method.HideReturnsTransformationMethod;
 import android.text.method.PasswordTransformationMethod;
@@ -31,7 +33,12 @@ import androidx.cardview.widget.CardView;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 
+import com.google.firebase.database.DataSnapshot;
+import com.google.firebase.database.DatabaseError;
+import com.google.firebase.database.DatabaseReference;
+import com.google.firebase.database.ValueEventListener;
 import com.smartpetfeeder.R;
+import com.smartpetfeeder.firebase.FirebaseService;
 import com.journeyapps.barcodescanner.ScanContract;
 import com.journeyapps.barcodescanner.ScanOptions;
 
@@ -66,6 +73,15 @@ public class WiFiConfigActivity extends AppCompatActivity {
     private ConnectivityManager connectivityManager;
     private ConnectivityManager.NetworkCallback feederNetworkCallback;
     private boolean feederNetworkRequestActive = false;
+
+    // Confirms over the internet (the feeder's Firebase heartbeat) that it joined WiFi, for when the
+    // phone loses the setup hotspot before the feeder can report back over it.
+    private static final long CLOUD_CHECK_TIMEOUT_MS = 75_000L;
+    private static final long CLOUD_CHECK_CLOCK_SLACK_MS = 60_000L;
+    private final Handler cloudCheckHandler = new Handler(Looper.getMainLooper());
+    private DatabaseReference cloudCheckRef;
+    private ValueEventListener cloudCheckListener;
+    private Runnable cloudCheckTimeout;
 
     private static final int REQ_WIFI_PERMISSION = 101;
     private static final String TAG = "WiFiConfigActivity";
@@ -105,6 +121,7 @@ public class WiFiConfigActivity extends AppCompatActivity {
     @Override
     protected void onDestroy() {
         super.onDestroy();
+        stopCloudCheck();
         if (espClient != null) espClient.shutdown();
         unbindFromFeederAp();
         if (discovery != null) discovery.shutdown();
@@ -250,6 +267,8 @@ public class WiFiConfigActivity extends AppCompatActivity {
         tvDeviceStatus.setText(
                 "Sending credentials and verifying connection…\n(This may take up to 15 seconds)");
 
+        stopCloudCheck();
+        final long sentAt = System.currentTimeMillis();
         espClient.configureWifi(ssid, password, new EspApiClient.ProgressCallback() {
 
             @Override
@@ -279,6 +298,12 @@ public class WiFiConfigActivity extends AppCompatActivity {
             }
 
             @Override
+            public void onFeederOutOfReach(String lostSsid) {
+                unbindFromFeederAp();
+                confirmFeederOnlineViaCloud(lostSsid, sentAt);
+            }
+
+            @Override
             public void onError(String errorMessage) {
                 setLoading(false);
                 btnConfigure.setEnabled(true);
@@ -288,6 +313,95 @@ public class WiFiConfigActivity extends AppCompatActivity {
                 tvDeviceStatus.setText("Failed: " + errorMessage);
             }
         });
+    }
+
+    /**
+     * The phone dropped off PetFeeder_Setup after the feeder took the WiFi details (normal: the feeder
+     * moves to the router's channel). Its process binding is released, so the phone is back on its
+     * normal connection; wait for the feeder's first heartbeat to Firebase to confirm it came online.
+     */
+    private void confirmFeederOnlineViaCloud(String ssid, long sentAt) {
+        String uid = FirebaseService.currentUid();
+        if (uid == null) {
+            finishUnconfirmed(ssid);
+            return;
+        }
+        stopCloudCheck();
+        tvDeviceStatus.setText("The feeder took the WiFi details and dropped its setup hotspot while joining \""
+                + ssid + "\".\n\nChecking that it came online… (up to "
+                + (CLOUD_CHECK_TIMEOUT_MS / 1000) + " seconds)");
+
+        final long[] baseline = {-1L};
+        cloudCheckRef = FirebaseService.userRef(FirebaseService.sharedDatabase(), uid)
+                .child("device_status").child("lastSeen");
+        cloudCheckListener = new ValueEventListener() {
+            @Override
+            public void onDataChange(DataSnapshot snapshot) {
+                Object v = snapshot.getValue();
+                long seen = v instanceof Number ? ((Number) v).longValue() : 0L;
+                if (baseline[0] < 0) {          // first value: whatever was there before the feeder rejoined
+                    baseline[0] = seen;
+                    if (seen < sentAt) return;  // a heartbeat already newer than the send counts straight away
+                    stopCloudCheck();
+                    finishConfirmedViaCloud(ssid);
+                    return;
+                }
+                if (seen > baseline[0] && seen >= sentAt - CLOUD_CHECK_CLOCK_SLACK_MS) {
+                    stopCloudCheck();
+                    finishConfirmedViaCloud(ssid);
+                }
+            }
+
+            @Override
+            public void onCancelled(DatabaseError error) {
+                Log.w(TAG, "Cloud check cancelled: " + error.getMessage());
+            }
+        };
+        cloudCheckRef.addValueEventListener(cloudCheckListener);
+        cloudCheckTimeout = () -> {
+            stopCloudCheck();
+            finishUnconfirmed(ssid);
+        };
+        cloudCheckHandler.postDelayed(cloudCheckTimeout, CLOUD_CHECK_TIMEOUT_MS);
+    }
+
+    private void stopCloudCheck() {
+        if (cloudCheckRef != null && cloudCheckListener != null) {
+            cloudCheckRef.removeEventListener(cloudCheckListener);
+        }
+        if (cloudCheckTimeout != null) cloudCheckHandler.removeCallbacks(cloudCheckTimeout);
+        cloudCheckRef = null;
+        cloudCheckListener = null;
+        cloudCheckTimeout = null;
+    }
+
+    private void finishConfirmedViaCloud(String ssid) {
+        if (isFinishing() || isDestroyed()) return;
+        setLoading(false);
+        btnConfigure.setEnabled(true);
+        discovery.clearLastKnownIp();
+        showWiFiSuccessDialog(ssid, "Online (address shows once your phone is on the same WiFi)");
+        tvDeviceStatus.setText("Connected to: " + ssid + "\nConfirmed online through the cloud.");
+        tvModeLabel.setText("Station Mode");
+        btnResetWifi.setVisibility(View.VISIBLE);
+    }
+
+    private void finishUnconfirmed(String ssid) {
+        if (isFinishing() || isDestroyed()) return;
+        setLoading(false);
+        btnConfigure.setEnabled(true);
+        String text = "The feeder received the details for \"" + ssid + "\", but your phone lost its "
+                + "setup connection before the feeder could confirm, so the result is not known yet.\n\n"
+                + "1. Reconnect your phone to your normal WiFi or mobile data.\n"
+                + "2. Open the app's Home screen; if the feeder shows Online, setup worked.\n"
+                + "3. If PetFeeder_Setup is still listed in your WiFi settings after a minute, the feeder "
+                + "could not join. Check that the network is 2.4 GHz and the password is exact, then try again.";
+        tvDeviceStatus.setText("Result not confirmed yet. Reconnect to your normal WiFi and check Home.");
+        new AlertDialog.Builder(this, R.style.AlertDialogTheme)
+                .setTitle("Couldn't confirm the connection")
+                .setMessage(text)
+                .setPositiveButton("OK", null)
+                .show();
     }
 
     private void confirmResetWifi() {
