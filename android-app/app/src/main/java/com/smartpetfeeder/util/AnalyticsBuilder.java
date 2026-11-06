@@ -48,8 +48,8 @@ public final class AnalyticsBuilder {
         final String label;
         final long startMs;
         final long endMs;
-        double target;
-        double actual;
+        double dispensed;
+        double consumed;
         int scheduled;
         int completed;
 
@@ -73,8 +73,8 @@ public final class AnalyticsBuilder {
 
         for (FeedingRecord r : inRange) {
             Bucket bucket = bucketFor(buckets, r.getScheduledTime());
-            bucket.target += r.getDisplayTarget();
-            bucket.actual += r.getDispensedWeight();
+            bucket.dispensed += dispensedOf(r);
+            bucket.consumed += r.getDisplayConsumedWeight();
             bucket.scheduled++;
             if (r.getStatusEnum() == FeedingRecord.Status.COMPLETED && !r.isInProgress(nowMs)) {
                 bucket.completed++;
@@ -87,11 +87,11 @@ public final class AnalyticsBuilder {
         if (range == Range.DAY) {
             for (FeedingRecord r : inRange) {
                 trend.add(new DashboardData.FoodTrendData(timeLabel(r),
-                        r.getDisplayTarget(), r.getDispensedWeight()));
+                        dispensedOf(r), r.getDisplayConsumedWeight()));
             }
         } else {
             for (Bucket b : buckets) {
-                trend.add(new DashboardData.FoodTrendData(b.label, b.target, b.actual));
+                trend.add(new DashboardData.FoodTrendData(b.label, b.dispensed, b.consumed));
             }
         }
         return new Result(trend, frequency);
@@ -142,6 +142,11 @@ public final class AnalyticsBuilder {
             if (timeMs < b.endMs) return b;
         }
         return buckets.get(buckets.size() - 1);
+    }
+
+    /** What the feeder reported dispensing; 0 until it has (a new manual record holds the app's placeholder). */
+    private static double dispensedOf(FeedingRecord r) {
+        return r.isDispensedKnown() ? Math.max(0f, r.getDispensedWeight()) : 0.0;
     }
 
     private static long startOfDay(long nowMs, int dayOffset) {

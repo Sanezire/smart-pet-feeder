@@ -24,9 +24,9 @@ import java.util.List;
 
 public class ChartHelper {
 
-    private static final int COLOR_TARGET    = Color.parseColor("#8D6E63");
-    private static final int COLOR_ACTUAL    = Color.parseColor("#FF8F00");
-    private static final int COLOR_ACTUAL_FILL = Color.parseColor("#33FF8F00");
+    private static final int COLOR_DISPENSED   = Color.parseColor("#8D6E63");
+    private static final int COLOR_CONSUMED    = Color.parseColor("#FF8F00");
+    private static final int COLOR_CONSUMED_FILL = Color.parseColor("#33FF8F00");
     private static final int COLOR_SCHEDULED = Color.parseColor("#BCAAA4");
     private static final int COLOR_COMPLETED = Color.parseColor("#4CAF50");
     private static final int COLOR_GRID      = Color.parseColor("#E8DDD9");
@@ -142,46 +142,46 @@ public class ChartHelper {
             return;
         }
 
-        List<Entry> targetEntries = new ArrayList<>();
-        List<Entry> actualEntries = new ArrayList<>();
-        List<String> labels       = new ArrayList<>();
+        List<Entry> dispensedEntries = new ArrayList<>();
+        List<Entry> consumedEntries  = new ArrayList<>();
+        List<String> labels          = new ArrayList<>();
 
         for (int i = 0; i < data.size(); i++) {
             DashboardData.FoodTrendData item = data.get(i);
-            targetEntries.add(new Entry(i, (float) item.getTargetWeight()));
-            actualEntries.add(new Entry(i, (float) item.getActualWeight()));
+            dispensedEntries.add(new Entry(i, (float) item.getDispensedWeight()));
+            consumedEntries.add(new Entry(i, (float) item.getConsumedWeight()));
             labels.add(item.getLabel());
         }
 
-        LineDataSet targetSet = new LineDataSet(targetEntries, "Target (g)");
-        targetSet.setColor(COLOR_TARGET);
-        targetSet.setLineWidth(2f);
-        targetSet.setDrawCircles(true);
-        targetSet.setCircleColor(COLOR_TARGET);
-        targetSet.setCircleRadius(4f);
-        targetSet.setCircleHoleRadius(2f);
-        targetSet.setDrawCircleHole(true);
-        targetSet.setCircleHoleColor(Color.WHITE);
-        targetSet.setDrawValues(false);
-        targetSet.setMode(LineDataSet.Mode.CUBIC_BEZIER);
-        targetSet.setDrawFilled(false);
+        LineDataSet dispensedSet = new LineDataSet(dispensedEntries, "Dispensed (g)");
+        dispensedSet.setColor(COLOR_DISPENSED);
+        dispensedSet.setLineWidth(2f);
+        dispensedSet.setDrawCircles(true);
+        dispensedSet.setCircleColor(COLOR_DISPENSED);
+        dispensedSet.setCircleRadius(4f);
+        dispensedSet.setCircleHoleRadius(2f);
+        dispensedSet.setDrawCircleHole(true);
+        dispensedSet.setCircleHoleColor(Color.WHITE);
+        dispensedSet.setDrawValues(false);
+        dispensedSet.setMode(LineDataSet.Mode.CUBIC_BEZIER);
+        dispensedSet.setDrawFilled(false);
 
-        LineDataSet actualSet = new LineDataSet(actualEntries, "Actual (g)");
-        actualSet.setColor(COLOR_ACTUAL);
-        actualSet.setLineWidth(2.5f);
-        actualSet.setDrawCircles(true);
-        actualSet.setCircleColor(COLOR_ACTUAL);
-        actualSet.setCircleRadius(4f);
-        actualSet.setCircleHoleRadius(2f);
-        actualSet.setDrawCircleHole(true);
-        actualSet.setCircleHoleColor(Color.WHITE);
-        actualSet.setDrawValues(false);
-        actualSet.setMode(LineDataSet.Mode.CUBIC_BEZIER);
-        actualSet.setDrawFilled(true);
-        actualSet.setFillColor(COLOR_ACTUAL_FILL);
-        actualSet.setFillAlpha(80);
+        LineDataSet consumedSet = new LineDataSet(consumedEntries, "Consumed (g)");
+        consumedSet.setColor(COLOR_CONSUMED);
+        consumedSet.setLineWidth(2.5f);
+        consumedSet.setDrawCircles(true);
+        consumedSet.setCircleColor(COLOR_CONSUMED);
+        consumedSet.setCircleRadius(4f);
+        consumedSet.setCircleHoleRadius(2f);
+        consumedSet.setDrawCircleHole(true);
+        consumedSet.setCircleHoleColor(Color.WHITE);
+        consumedSet.setDrawValues(false);
+        consumedSet.setMode(LineDataSet.Mode.CUBIC_BEZIER);
+        consumedSet.setDrawFilled(true);
+        consumedSet.setFillColor(COLOR_CONSUMED_FILL);
+        consumedSet.setFillAlpha(80);
 
-        LineData lineData = new LineData(targetSet, actualSet);
+        LineData lineData = new LineData(dispensedSet, consumedSet);
         lineChart.setData(lineData);
         lineChart.getXAxis().setValueFormatter(new IndexAxisValueFormatter(labels));
         lineChart.getXAxis().setLabelCount(Math.min(labels.size(), 7));

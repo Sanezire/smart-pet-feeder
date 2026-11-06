@@ -2436,8 +2436,8 @@ public class MainActivity extends AppCompatActivity implements FirebaseService.D
     private String chartSignature(AnalyticsBuilder.Result result) {
         StringBuilder sb = new StringBuilder(currentRange.name()).append('#');
         for (DashboardData.FoodTrendData t : result.getTrend()) {
-            sb.append(t.getLabel()).append(',').append(t.getTargetWeight()).append(',')
-              .append(t.getActualWeight()).append(';');
+            sb.append(t.getLabel()).append(',').append(t.getDispensedWeight()).append(',')
+              .append(t.getConsumedWeight()).append(';');
         }
         sb.append('#');
         for (DashboardData.FeedingFrequencyData f : result.getFrequency()) {

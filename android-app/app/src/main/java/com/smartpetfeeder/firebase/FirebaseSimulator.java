@@ -276,8 +276,8 @@ public class FirebaseSimulator {
 
             trendData.add(new DashboardData.FoodTrendData(
                     label,
-                    record.getScheduledPortion(),
-                    record.getDispensedWeight()
+                    record.getDispensedWeight(),
+                    record.getDisplayConsumedWeight()
             ));
         }
 

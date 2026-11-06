@@ -97,40 +97,26 @@ public class DashboardData {
         this.lastUpdated = lastUpdated;
     }
 
+    /** One point of the Food Portion Trends chart: food dispensed vs. food the pet ate, in grams. */
     public static class FoodTrendData {
         private String label;
-        private double targetWeight;
-        private double actualWeight;
+        private double dispensedWeight;
+        private double consumedWeight;
 
-        public FoodTrendData(String label, double targetWeight, double actualWeight) {
+        public FoodTrendData(String label, double dispensedWeight, double consumedWeight) {
             this.label = label;
-            this.targetWeight = targetWeight;
-            this.actualWeight = actualWeight;
+            this.dispensedWeight = dispensedWeight;
+            this.consumedWeight = consumedWeight;
         }
 
-        public String getLabel() {
-            return label;
-        }
+        public String getLabel() { return label; }
+        public void setLabel(String label) { this.label = label; }
 
-        public void setLabel(String label) {
-            this.label = label;
-        }
+        public double getDispensedWeight() { return dispensedWeight; }
+        public void setDispensedWeight(double v) { this.dispensedWeight = v; }
 
-        public double getTargetWeight() {
-            return targetWeight;
-        }
-
-        public void setTargetWeight(double targetWeight) {
-            this.targetWeight = targetWeight;
-        }
-
-        public double getActualWeight() {
-            return actualWeight;
-        }
-
-        public void setActualWeight(double actualWeight) {
-            this.actualWeight = actualWeight;
-        }
+        public double getConsumedWeight() { return consumedWeight; }
+        public void setConsumedWeight(double v) { this.consumedWeight = v; }
     }
 
     public static class FeedingFrequencyData {
