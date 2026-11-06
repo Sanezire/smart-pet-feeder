@@ -62,6 +62,8 @@ public class FirebaseService {
             {21, 0,  60},
     };
     private static final int MOCK_DAYS = 7;
+    /** Newest records kept in memory, by feed time so manual and scheduled feeds both stay in. */
+    private static final int RECORDS_LOAD_LIMIT = 1000;
 
     public interface DataUpdateListener {
         void onDataUpdated(DashboardData dashboardData);
@@ -877,7 +879,7 @@ public class FirebaseService {
                     listener.onError("Database error: " + error.getMessage());
             }
         };
-        recordsQuery = recordsRef.limitToLast(120);
+        recordsQuery = recordsRef.orderByChild("scheduledTime").limitToLast(RECORDS_LOAD_LIMIT);
         recordsQuery.addValueEventListener(recordsListener);
     }
 
@@ -1636,8 +1638,6 @@ public class FirebaseService {
             List<AnomalyAlert> alerts = new ArrayList<>();   // anomaly alerts are no longer produced
 
             SummaryStats stats      = buildSummaryStats(cachedRecords, alerts);
-            List<DashboardData.FoodTrendData>      trendData = buildTrendData(cachedRecords);
-            List<DashboardData.FeedingFrequencyData> freqData = buildFreqData(cachedRecords);
 
             DashboardData data = new DashboardData();
             data.setPetName(petName);
@@ -1648,8 +1648,6 @@ public class FirebaseService {
             data.setFeedingHistory(cachedRecords);
             data.setAnomalyAlerts(alerts);
             data.setSummaryStats(stats);
-            data.setFoodTrendData(trendData);
-            data.setFrequencyData(freqData);
             data.setSchedules(new ArrayList<>(cachedSchedules));
 
             listener.onDataUpdated(data);
@@ -1716,39 +1714,6 @@ public class FirebaseService {
         float avgRatio = totalRatio / count;
         float next = recommendedPortion * (0.9f + (avgRatio * 0.1f));
         return Math.max(40f, Math.min(160f, Math.round(next)));
-    }
-
-    private List<DashboardData.FoodTrendData> buildTrendData(List<FeedingRecord> records) {
-        List<DashboardData.FoodTrendData> trend = new ArrayList<>();
-        int count = Math.min(records.size(), 8);
-        for (int i = count - 1; i >= 0; i--) {
-            FeedingRecord r = records.get(i);
-            trend.add(new DashboardData.FoodTrendData(
-                    r.getScheduledTimeDisplay() != null ? r.getScheduledTimeDisplay() : "--:--",
-                    r.getScheduledPortion(),
-                    r.getDispensedWeight()
-            ));
-        }
-        return trend;
-    }
-
-    private List<DashboardData.FeedingFrequencyData> buildFreqData(List<FeedingRecord> records) {
-        java.util.LinkedHashMap<String, int[]> map = new java.util.LinkedHashMap<>();
-        for (FeedingRecord r : records) {
-            String date = r.getDate() != null ? r.getDate() : "?";
-            if (!map.containsKey(date)) map.put(date, new int[]{0, 0});
-            map.get(date)[0]++;
-            if (r.getStatusEnum() == FeedingRecord.Status.COMPLETED
-                    && !r.isInProgress(System.currentTimeMillis())) map.get(date)[1]++;
-        }
-        List<DashboardData.FeedingFrequencyData> freq = new ArrayList<>();
-        int n = 0;
-        for (Map.Entry<String, int[]> e : map.entrySet()) {
-            if (n++ >= 7) break;
-            freq.add(new DashboardData.FeedingFrequencyData(
-                    e.getKey(), e.getValue()[0], e.getValue()[1]));
-        }
-        return freq;
     }
 
     private static String epochToTime(long epochMs) {

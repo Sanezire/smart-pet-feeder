@@ -57,6 +57,7 @@ import com.smartpetfeeder.model.DeviceFeedSummary;
 import com.smartpetfeeder.model.LiveFeedingStats;
 import com.smartpetfeeder.model.PetProfile;
 import com.smartpetfeeder.model.SummaryStats;
+import com.smartpetfeeder.util.AnalyticsBuilder;
 import com.smartpetfeeder.util.ChartHelper;
 import com.smartpetfeeder.util.PetFeedingCalculator;
 
@@ -149,7 +150,7 @@ public class MainActivity extends AppCompatActivity implements FirebaseService.D
     private DeviceDiscovery       deviceDiscovery;
     private EspApiClient          espApiClient;
 
-    private String  currentFilter = "DAY";
+    private AnalyticsBuilder.Range currentRange = AnalyticsBuilder.Range.DAY;
     private Tab currentTab = Tab.HOME;
     private NotificationFilter currentNotificationFilter = NotificationFilter.ALL;
     private boolean isFirstLoad   = true;
@@ -1213,12 +1214,11 @@ public class MainActivity extends AppCompatActivity implements FirebaseService.D
     private void setupFilterToggle() {
         toggleGroup.addOnButtonCheckedListener((group, checkedId, isChecked) -> {
             if (!isChecked) return;
-            if      (checkedId == R.id.btnDay)   currentFilter = "DAY";
-            else if (checkedId == R.id.btnWeek)  currentFilter = "WEEK";
-            else if (checkedId == R.id.btnMonth) currentFilter = "MONTH";
-            historyPage = 0;
+            if      (checkedId == R.id.btnDay)   currentRange = AnalyticsBuilder.Range.DAY;
+            else if (checkedId == R.id.btnWeek)  currentRange = AnalyticsBuilder.Range.WEEK;
+            else if (checkedId == R.id.btnMonth) currentRange = AnalyticsBuilder.Range.MONTH;
             DashboardData cached = latestDashboardData;
-            if (cached != null) updateFeedingHistory(cached.getFeedingHistory());
+            if (cached != null) updateCharts(cached);
         });
     }
 
@@ -2433,31 +2433,29 @@ public class MainActivity extends AppCompatActivity implements FirebaseService.D
         }
     }
 
-    private String chartSignature(DashboardData data) {
-        StringBuilder sb = new StringBuilder();
-        if (data.getFoodTrendData() != null) {
-            for (DashboardData.FoodTrendData t : data.getFoodTrendData()) {
-                sb.append(t.getLabel()).append(',').append(t.getTargetWeight()).append(',')
-                  .append(t.getActualWeight()).append(';');
-            }
+    private String chartSignature(AnalyticsBuilder.Result result) {
+        StringBuilder sb = new StringBuilder(currentRange.name()).append('#');
+        for (DashboardData.FoodTrendData t : result.getTrend()) {
+            sb.append(t.getLabel()).append(',').append(t.getTargetWeight()).append(',')
+              .append(t.getActualWeight()).append(';');
         }
         sb.append('#');
-        if (data.getFrequencyData() != null) {
-            for (DashboardData.FeedingFrequencyData f : data.getFrequencyData()) {
-                sb.append(f.getLabel()).append(',').append(f.getScheduledCount()).append(',')
-                  .append(f.getCompletedCount()).append(';');
-            }
+        for (DashboardData.FeedingFrequencyData f : result.getFrequency()) {
+            sb.append(f.getLabel()).append(',').append(f.getScheduledCount()).append(',')
+              .append(f.getCompletedCount()).append(';');
         }
         return sb.toString();
     }
 
     private void updateCharts(DashboardData data) {
         if (chartHelper == null) return;
-        String sig = chartSignature(data);
+        AnalyticsBuilder.Result result = AnalyticsBuilder.build(
+                data.getFeedingHistory(), currentRange, System.currentTimeMillis());
+        String sig = chartSignature(result);
         if (sig.equals(renderedChartSig)) return;
         renderedChartSig = sig;
-        chartHelper.populateLineChart(lineChart, data.getFoodTrendData());
-        chartHelper.populateBarChart(barChart, data.getFrequencyData());
+        chartHelper.populateLineChart(lineChart, result.getTrend());
+        chartHelper.populateBarChart(barChart, result.getFrequency());
     }
 
     private void updateFeedingHistory(List<FeedingRecord> records) {

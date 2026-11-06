@@ -184,7 +184,7 @@ public class ChartHelper {
         LineData lineData = new LineData(targetSet, actualSet);
         lineChart.setData(lineData);
         lineChart.getXAxis().setValueFormatter(new IndexAxisValueFormatter(labels));
-        lineChart.getXAxis().setLabelCount(Math.min(labels.size(), 6));
+        lineChart.getXAxis().setLabelCount(Math.min(labels.size(), 7));
         lineChart.invalidate();
     }
 
