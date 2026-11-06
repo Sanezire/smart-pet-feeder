@@ -1,0 +1,30 @@
+{
+  "rules": {
+    ".read": false,
+    ".write": false,
+    "users": {
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid",
+        ".write": "auth != null && auth.uid === $uid",
+        "device_status": {
+          ".read": true,
+          ".write": true
+        },
+        "feeding_records": {
+          "$recordId": {
+            ".write": true
+          }
+        },
+        "tray_events": {
+          "$eventId": {
+            ".write": true,
+            ".validate": "newData.hasChildren(['closedAt','closedBy','openSeconds']) && (newData.child('closedBy').val() === 'auto' || newData.child('closedBy').val() === 'manual')"
+          }
+        },
+        "pet_profile": {
+          ".validate": "newData.hasChildren(['name','type','ownerUid']) && newData.child('ownerUid').val() === $uid"
+        }
+      }
+    }
+  }
+}
