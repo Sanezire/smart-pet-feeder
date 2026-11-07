@@ -104,7 +104,7 @@
 #define WIFI_RETRY_MAX_MS         30000UL
 #define FIREBASE_HTTP_TIMEOUT_MS  5000
 #define FIREBASE_MIN_FREE_HEAP    10000UL  // below this a secure (TLS) connection cannot open: skip instead of failing
-#define FIREBASE_MIN_FREE_BLOCK   6000UL   // largest contiguous free block needed for the TLS buffers
+#define FIREBASE_MIN_FREE_BLOCK   4096UL   // largest block a new TLS session allocates (BearSSL client context, ~3.4 KB)
 #define HEAP_LOG_MS               60000UL  // periodic heap line on the serial monitor
 #define LOCAL_CLIENT_ACTIVE_MS    10000UL  // the app counts as "reading locally" if it polled /status this recently
 #define TRAY_PRE_OPEN_SAMPLE_MS   300UL    // take the after-dispense weight this long before the tray opens
@@ -883,9 +883,32 @@ String heapSummary() {
          + "% minSeen=" + String(minFreeHeapSeen);
 }
 
+// One TLS client shared by every Firebase request. GET and PATCH used to keep a session each, which
+// held ~5 KB more heap and fragmented it until polls were skipped and remote commands never arrived.
+BearSSL::WiFiClientSecure& firebaseClient() {
+  static BearSSL::WiFiClientSecure client;
+  static bool configured = false;
+  if (!configured) {
+    client.setInsecure();
+    client.setBufferSizes(1024, 512);
+    client.setTimeout(FIREBASE_HTTP_TIMEOUT_MS);
+    configured = true;
+  }
+  return client;
+}
+
+static bool firebaseHeapFits() {
+  return ESP.getFreeHeap() >= FIREBASE_MIN_FREE_HEAP && ESP.getMaxFreeBlockSize() >= FIREBASE_MIN_FREE_BLOCK;
+}
+
 bool firebaseHeapOk(const char* what) {
   noteHeap();
-  if (ESP.getFreeHeap() >= FIREBASE_MIN_FREE_HEAP && ESP.getMaxFreeBlockSize() >= FIREBASE_MIN_FREE_BLOCK) return true;
+  if (firebaseHeapFits()) return true;
+  BearSSL::WiFiClientSecure& client = firebaseClient();
+  if (client.connected()) {        // dropping the kept-alive session frees its buffers; that may be enough
+    client.stop();
+    if (firebaseHeapFits()) return true;
+  }
   if (millis() - lastHeapSkipLogMs >= 10000UL) {
     lastHeapSkipLogMs = millis();
     Serial.println(String("[Heap] Low memory - skipping Firebase ") + what + " (" + heapSummary() + ")");
@@ -894,11 +917,8 @@ bool firebaseHeapOk(const char* what) {
 }
 
 String firebaseGet(const String& path) {
-  static BearSSL::WiFiClientSecure client;
-  if (!firebaseHeapOk("GET")) { client.stop(); return ""; }   // drop any kept-alive TLS session to free memory
-  client.setInsecure();
-  client.setBufferSizes(1024, 512);
-  client.setTimeout(FIREBASE_HTTP_TIMEOUT_MS);
+  if (!firebaseHeapOk("GET")) return "";
+  BearSSL::WiFiClientSecure& client = firebaseClient();
   HTTPClient http;
   http.setTimeout(FIREBASE_HTTP_TIMEOUT_MS);
   http.setReuse(true);
@@ -911,11 +931,8 @@ String firebaseGet(const String& path) {
 }
 
 bool firebasePatch(const String& path, const String& payload) {
-  static BearSSL::WiFiClientSecure client;
-  if (!firebaseHeapOk("PATCH")) { client.stop(); return false; }   // drop any kept-alive TLS session to free memory
-  client.setInsecure();
-  client.setBufferSizes(1024, 512);
-  client.setTimeout(FIREBASE_HTTP_TIMEOUT_MS);
+  if (!firebaseHeapOk("PATCH")) return false;
+  BearSSL::WiFiClientSecure& client = firebaseClient();
   HTTPClient http;
   http.setTimeout(FIREBASE_HTTP_TIMEOUT_MS);
   http.setReuse(true);
