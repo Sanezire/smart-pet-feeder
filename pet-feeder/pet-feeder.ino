@@ -104,7 +104,8 @@
 #define WIFI_RETRY_MAX_MS         30000UL
 #define FIREBASE_HTTP_TIMEOUT_MS  5000
 #define FIREBASE_MIN_FREE_HEAP    10000UL  // below this a secure (TLS) connection cannot open: skip instead of failing
-#define FIREBASE_MIN_FREE_BLOCK   4096UL   // largest block a new TLS session allocates (BearSSL client context, ~3.4 KB)
+#define FIREBASE_MIN_FREE_BLOCK   4608UL   // largest block a new TLS session allocates (the 4.4 KB receive buffer)
+#define FIREBASE_TLS_RX_BYTES     4096     // must hold a whole TLS record from Firebase; 1024 failed once device_status grew
 #define HEAP_LOG_MS               60000UL  // periodic heap line on the serial monitor
 #define LOCAL_CLIENT_ACTIVE_MS    10000UL  // the app counts as "reading locally" if it polled /status this recently
 #define TRAY_PRE_OPEN_SAMPLE_MS   300UL    // take the after-dispense weight this long before the tray opens
@@ -890,7 +891,9 @@ BearSSL::WiFiClientSecure& firebaseClient() {
   static bool configured = false;
   if (!configured) {
     client.setInsecure();
-    client.setBufferSizes(1024, 512);
+    // The server does not shrink its TLS records for us, so the receive buffer must fit a whole record.
+    // With 1 KB, any response over ~1 KB (device_status once schedules are saved) failed silently.
+    client.setBufferSizes(FIREBASE_TLS_RX_BYTES, 512);
     client.setTimeout(FIREBASE_HTTP_TIMEOUT_MS);
     configured = true;
   }
@@ -926,8 +929,22 @@ String firebaseGet(const String& path) {
   int code = http.GET();
   String body = (code > 0) ? http.getString() : "";
   http.end();
-  if (code <= 0) client.stop();                                // failed connection: release its buffers
-  return (code >= 200 && code < 300) ? body : "";
+  int sslErr = 0;
+  if (code <= 0) {
+    char sslMsg[2];
+    sslErr = client.getLastSSLError(sslMsg, sizeof(sslMsg));
+    client.stop();                                             // failed connection: release its buffers
+  }
+  if (code < 200 || code >= 300) {
+    static unsigned long lastGetErrLogMs = 0;
+    if (lastGetErrLogMs == 0 || millis() - lastGetErrLogMs >= 10000UL) {
+      lastGetErrLogMs = millis();
+      Serial.println("[Firebase] GET failed, HTTP " + String(code) + " (" + HTTPClient::errorToString(code)
+          + ") ssl=" + String(sslErr) + " path=" + path + " " + heapSummary());
+    }
+    return "";
+  }
+  return body;
 }
 
 bool firebasePatch(const String& path, const String& payload) {
