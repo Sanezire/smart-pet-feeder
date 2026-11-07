@@ -1219,15 +1219,34 @@ void pollDeviceStatus() {
     return;
   }
 
-  StaticJsonDocument<192> filter;
-  filter["remote_config"]             = true;
+  // Keep only the fields the feeder uses. The app's schedule objects also carry display-only fields
+  // (label, timeDisplay, repeatDisplay, ...) that would cost ~25% more memory to parse.
+  StaticJsonDocument<512> filter;
+  filter["remote_config"]["portionGrams"]     = true;
+  filter["remote_config"]["trayCloseMinutes"] = true;
+  JsonObject schedFilter = filter["remote_config"]["schedule"][0].to<JsonObject>();
+  for (const char* key : {"id", "scheduleId", "hour", "minute", "timeHour", "timeMinute",
+                          "enabled", "repeatDays", "portionGrams"}) {
+    schedFilter[key] = true;
+  }
   filter["remote_command"]            = true;
   filter["schedule_version"]          = true;
   filter["applied_schedule_version"]  = true;
 
-  DynamicJsonDocument doc(6144);
+  // Up to 6 KB, but never more than the largest free block (a failed allocation would make every
+  // poll fail: no schedules applied and no remote commands). 16 schedules need about 4.5 KB.
+  uint32_t maxBlock = ESP.getMaxFreeBlockSize();
+  size_t capacity = maxBlock > 2560 ? (size_t)min<uint32_t>(6144, maxBlock - 512) : 2048;
+  DynamicJsonDocument doc(capacity);
   DeserializationError err = deserializeJson(doc, body, DeserializationOption::Filter(filter));
+  body = String();                       // the document holds its own copies; free the raw response now
   if (err) {
+    static unsigned long lastParseErrLogMs = 0;
+    if (lastParseErrLogMs == 0 || millis() - lastParseErrLogMs >= 10000UL) {
+      lastParseErrLogMs = millis();
+      Serial.println(String("[Firebase] Could not read device_status (") + err.c_str() + ", doc "
+                     + String((unsigned)doc.capacity()) + " B, " + heapSummary() + ")");
+    }
     if (millis() - lastHeartbeatMs >= FIREBASE_HEARTBEAT_MS || liveWeightMoved()) sendHeartbeat(0);
     return;
   }
